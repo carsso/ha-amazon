@@ -5,10 +5,10 @@
 # automation then sends the notification without an image rather than a
 # broken one.
 #
-# The URL comes straight off Amazon's tracking page and is not public: it
-# may expire, and whether your phone can load it depends on Amazon, not on
-# Home Assistant. If the image stays blank, drop the ``image:`` line — the
-# text notification still works.
+# The link Amazon hands out is temporary — roughly three days from the moment
+# the integration read the tracking page. That is no problem here, because
+# this fires on delivery, when the link is minutes old. For a dashboard card
+# showing older parcels, check ``raw.delivery_photo_expires`` first.
 
 alias: "Amazon: delivered, with photo"
 description: Notify when an Amazon parcel is delivered, including the delivery photo.

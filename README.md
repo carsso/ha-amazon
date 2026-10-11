@@ -193,10 +193,18 @@ image: "{{ trigger.event.data.raw.delivery_photo_url }}"
 
 A ready-to-paste automation is in [`examples/automations/notify_with_delivery_photo.yaml`](examples/automations/notify_with_delivery_photo.yaml).
 
-Two caveats:
+Two things to know:
 
-- **Only Amazon's own fleet.** A parcel carried by Dragonfly, DHL or Colis Privé has no photo, and the field is `null`.
-- **The URL is Amazon's, not ours.** It comes straight off the tracking page, is not a public link and may expire. Whether your phone or browser can load it is up to Amazon. The integration never downloads the image itself.
+- **Only Amazon's own fleet.** A parcel carried by Dragonfly, DHL or Colis Privé has no photo, and both fields are `null`.
+- **The link expires about three days after it is read.** Amazon hands out a temporary link, so your phone or browser can load it without being signed in — but not forever, and the clock starts when the integration read the tracking page, not when the parcel was delivered. A notification sent on delivery is well inside that window; a dashboard card showing a parcel from last week is not. `raw.delivery_photo_expires` carries the moment the link dies (ISO 8601, UTC), so a card can hide a broken image:
+
+```jinja
+{% if parcel.raw.delivery_photo_expires > now().isoformat() %}
+  ...show the photo...
+{% endif %}
+```
+
+The integration never downloads the image itself; it only passes the link on.
 
 Diagnostics redact the URL: it is a picture of your own front door, and diagnostics get pasted into public issues.
 

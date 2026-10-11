@@ -104,11 +104,17 @@ precedent for any other carrier). Prefer embedded JSON state over visible text.
   `None`. It lives on the tracking page we already fetch, so it costs no extra
   request. Parse it from the lazy `data-src`, never `src` (a `data:` placeholder),
   and keep the `<noscript>` twin as the fallback anchor — it has no class, so it
-  survives a class rename. **Unverified:** the URL shape. The reporter's excerpt
-  had every link redacted, so whether it is a signed expiring asset or a
-  cookie-protected path is unknown, and therefore so is whether a dashboard or a
-  phone can load it at all. The README says so plainly rather than promising it
-  works; don't quietly upgrade that wording without a real URL.
+  survives a class rename. The URL is a **presigned S3 link** (confirmed by the
+  reporter, 2026-10-11): no cookie needed, so a phone can load it, but it dies a
+  fixed number of seconds after it was signed — and signing happens when *we* read
+  the page, not when the parcel was delivered. `raw["delivery_photo_expires"]` is
+  that moment, derived from the URL's own parameters, so a dashboard can hide a
+  dead image. **The tripwire:** a delivered shipment enters `client._final` and is
+  never re-read, so its link is frozen at that one poll and the observed 72 h of
+  validity runs out while the parcel is still inside `DELIVERED_LOOKBACK_DAYS`.
+  Accepted, not a bug to fix by re-polling delivered parcels — the notification
+  case fires minutes after the read. Don't hardcode the bucket host: it is
+  regional and only one storefront's has been seen.
 - **The timeline is in the account's language.** `_EVENT_MAP` holds only wording a
   real page has shown (English, plus the Dutch from an amazon.com.be page) — unlike
   `vocabulary.py`, it has no plausible tier, because a wrong guess here silently

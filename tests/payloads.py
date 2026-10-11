@@ -16,7 +16,13 @@ ACTIVE_SHIPMENT = "SHIPactive1"
 DELIVERED_SHIPMENT = "SHIPdone001"
 FAKE_MAPS_KEY = "fake-maps-key-0000"
 FAKE_CUSTOMER = "CUSTOMER00000"
-FAKE_PHOTO_URL = "https://photo.test/pod/opaque-id.jpg?token=abc&exp=1"
+FAKE_PHOTO_URL = (
+    "https://gb-prod-temp.s3.eu-west-1.amazonaws.com/imageId-FAKEIMAGE0000"
+    "?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20261006T101530Z"
+    "&X-Amz-SignedHeaders=host&X-Amz-Credential=FAKECRED%2Ffake"
+    "&X-Amz-Expires=259200&X-Amz-Signature=fakesignature0000"
+)
+FAKE_PHOTO_EXPIRES = "2026-10-09T10:15:30+00:00"
 
 
 def tile(
@@ -172,6 +178,7 @@ def delivered_record(code: str = DELIVERED_CODE) -> dict:
         "track_path": track_path(DELIVERED_SHIPMENT),
         "page_state": {"customerId": FAKE_CUSTOMER},
         "delivery_photo_url": FAKE_PHOTO_URL,
+        "delivery_photo_expires": FAKE_PHOTO_EXPIRES,
     }
 
 
@@ -188,6 +195,7 @@ def active_record(code: str = ACTIVE_CODE) -> dict:
             "track_path": track_path(ACTIVE_SHIPMENT),
             # The photo only exists once Amazon's own fleet has delivered.
             "delivery_photo_url": None,
+            "delivery_photo_expires": None,
         }
     )
     record["events"] = [

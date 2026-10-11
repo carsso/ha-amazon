@@ -10,7 +10,7 @@ import html
 import json
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -56,6 +56,11 @@ _POD_REGION_RE = re.compile(
     re.S,
 )
 _POD_IMG_RE = re.compile(r"<img\b[^>]*>", re.S)
+# The photo is a presigned S3 link: it stops working a fixed number of seconds
+# after it was signed, which is when we read the page, not when the parcel was
+# delivered. Publishing the moment it dies lets a dashboard hide a dead image.
+_POD_SIGNED_AT = "X-Amz-Date"
+_POD_VALID_FOR = "X-Amz-Expires"
 _POD_SRC_RE = re.compile(r'\b(data-src|src)="([^"]+)"')
 
 # Third-party map key the page embeds; it is not parcel data.
@@ -112,6 +117,7 @@ class TrackInfo:
     events: list[dict[str, Any]] = field(default_factory=list)
     state: dict[str, Any] = field(default_factory=dict)
     delivery_photo_url: str | None = None
+    delivery_photo_expires: str | None = None
 
 
 def looks_signed_out(page: str) -> bool:
@@ -336,6 +342,23 @@ def parse_delivery_photo(page: str) -> str | None:
     return None
 
 
+def delivery_photo_expiry(url: str | None) -> str | None:
+    """Return when a delivery-photo link stops working, if the URL says so."""
+    if not url:
+        return None
+    params = parse_qs(urlparse(url).query)
+    signed_at = (params.get(_POD_SIGNED_AT) or [""])[0]
+    valid_for = (params.get(_POD_VALID_FOR) or [""])[0]
+    if not signed_at or not valid_for.isdigit():
+        return None
+    try:
+        start = datetime.strptime(signed_at, "%Y%m%dT%H%M%SZ")
+    except ValueError:
+        return None
+    expiry = start.replace(tzinfo=timezone.utc) + timedelta(seconds=int(valid_for))
+    return expiry.isoformat()
+
+
 def parse_track_page(page: str, today: date) -> TrackInfo:
     """Parse a ship-track page into carrier, tracking id, state and timeline."""
     state = _page_state(page)
@@ -346,17 +369,19 @@ def parse_track_page(page: str, today: date) -> TrackInfo:
     tracking_id = state.get("trackingId") or (
         tracking_match.group(1) if tracking_match else None
     )
-    timezone = state.get("timezone")
-    if not isinstance(timezone, str):
-        timezone = None
+    page_zone = state.get("timezone")
+    if not isinstance(page_zone, str):
+        page_zone = None
+    photo = parse_delivery_photo(page)
     return TrackInfo(
         tracking_id=str(tracking_id) if tracking_id else None,
         carrier_code=carrier.group(1) if carrier else None,
-        timezone=timezone,
+        timezone=page_zone,
         carrier_header=carrier_header,
-        events=_parse_events(page, _zone(timezone), today),
+        events=_parse_events(page, _zone(page_zone), today),
         state=state,
-        delivery_photo_url=parse_delivery_photo(page),
+        delivery_photo_url=photo,
+        delivery_photo_expires=delivery_photo_expiry(photo),
     )
 
 
@@ -383,6 +408,7 @@ def build_record(
         "tracking_id": tracking_id,
         "carrier_code": track.carrier_code if track else None,
         "delivery_photo_url": track.delivery_photo_url if track else None,
+        "delivery_photo_expires": track.delivery_photo_expires if track else None,
         "carrier_header": track.carrier_header if track else None,
         "order_status": lead.status_text or None,
         "order_status_note": lead.status_note,

@@ -6,6 +6,7 @@ import pytest
 from custom_components.amazon_orders.account.pages import (
     _day_month,
     build_record,
+    delivery_photo_expiry,
     looks_signed_out,
     parse_delivery_photo,
     parse_order_tiles,
@@ -20,6 +21,8 @@ from ..payloads import (
     DELIVERED_EVENTS,
     DELIVERED_SHIPMENT,
     FAKE_MAPS_KEY,
+    FAKE_PHOTO_EXPIRES,
+    FAKE_PHOTO_URL,
     ORDER_ID,
     orders_page,
     pop_page,
@@ -210,8 +213,8 @@ def test_track_page_reads_state_carrier_and_timeline():
     assert info.events[3]["timestamp"] == "2026-10-02T00:00:00+02:00"
 
 
-_PHOTO = "https://photo.test/pod/opaque-id.jpg?token=abc&amp;exp=1"
-_PHOTO_PLAIN = "https://photo.test/pod/opaque-id.jpg?token=abc&exp=1"
+_PHOTO_PLAIN = FAKE_PHOTO_URL
+_PHOTO = FAKE_PHOTO_URL.replace("&", "&amp;")
 
 
 def test_delivery_photo_is_read_from_the_lazy_data_src():
@@ -221,8 +224,31 @@ def test_delivery_photo_is_read_from_the_lazy_data_src():
     assert not info.delivery_photo_url.startswith("data:")
 
 
+def test_delivery_photo_expiry_comes_from_the_presigned_url():
+    """The link dies 72 h after we read the page, not after the delivery."""
+    info = parse_track_page(track_page(delivery_photo=_PHOTO_PLAIN), TODAY)
+    assert info.delivery_photo_expires == FAKE_PHOTO_EXPIRES
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        None,
+        "https://photo.test/pod/x.jpg",
+        "https://photo.test/pod/x.jpg?X-Amz-Date=20261006T101530Z",
+        "https://photo.test/pod/x.jpg?X-Amz-Expires=259200",
+        "https://photo.test/pod/x.jpg?X-Amz-Date=nonsense&X-Amz-Expires=259200",
+        "https://photo.test/pod/x.jpg?X-Amz-Date=20261006T101530Z&X-Amz-Expires=soon",
+    ],
+)
+def test_delivery_photo_expiry_is_none_when_the_url_does_not_say(url):
+    assert delivery_photo_expiry(url) is None
+
+
 def test_delivery_photo_is_none_without_the_card():
-    assert parse_track_page(track_page(), TODAY).delivery_photo_url is None
+    info = parse_track_page(track_page(), TODAY)
+    assert info.delivery_photo_url is None
+    assert info.delivery_photo_expires is None
 
 
 def test_delivery_photo_falls_back_to_the_noscript_image():
@@ -367,6 +393,7 @@ def test_record_carries_the_delivery_photo_url():
     info = parse_track_page(track_page(delivery_photo=_PHOTO_PLAIN), TODAY)
     record = build_record(COUNTRY, _tiles(), track_path(DELIVERED_SHIPMENT), info)
     assert record["delivery_photo_url"] == _PHOTO_PLAIN
+    assert record["delivery_photo_expires"] == FAKE_PHOTO_EXPIRES
 
 
 def test_record_without_a_tracking_page_is_flagged():

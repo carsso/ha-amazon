@@ -45,8 +45,11 @@ _SHORT_STATUS_MAP: dict[str, ParcelStatus] = {
     "DELIVERED": ParcelStatus.DELIVERED,
 }
 
-# Timeline messages, lower-cased.
+# Timeline messages, lower-cased and stripped of trailing punctuation. Every
+# entry comes from a real page; the timeline is in the account's own language,
+# so a storefront's wording has to be captured before it can be mapped.
 _EVENT_MAP: dict[str, ParcelStatus] = {
+    # en
     "package arrived at an amazon facility": ParcelStatus.IN_TRANSIT,
     "package departed an amazon facility": ParcelStatus.IN_TRANSIT,
     "parcel arrived at a carrier facility": ParcelStatus.IN_TRANSIT,
@@ -54,6 +57,13 @@ _EVENT_MAP: dict[str, ParcelStatus] = {
     "out for delivery": ParcelStatus.OUT_FOR_DELIVERY,
     "delivered to customer": ParcelStatus.DELIVERED,
     "delivered to letterbox": ParcelStatus.DELIVERED,
+    # nl, seen on an amazon.com.be tracking page
+    "je pakket is aangekomen bij een amazon-faciliteit": ParcelStatus.IN_TRANSIT,
+    "je pakket heeft een amazon-faciliteit verlaten": ParcelStatus.IN_TRANSIT,
+    "het pakket heeft de verzendingsfaciliteit verlaten": ParcelStatus.IN_TRANSIT,
+    "pakket aangekomen bij het laatste bezorgstation": ParcelStatus.IN_TRANSIT,
+    "uit voor levering": ParcelStatus.OUT_FOR_DELIVERY,
+    "bezorgd in brievenbus": ParcelStatus.DELIVERED,
 }
 
 _CARRIER_NAMES = {
@@ -97,11 +107,12 @@ def _event_status(message: str | None) -> ParcelStatus | None:
     """Look a timeline message up without logging anything."""
     if not message:
         return None
-    text = message.strip().lower()
+    # Amazon ends some timeline messages with a full stop and some without.
+    text = message.strip().lower().rstrip(".!")
     mapped = _EVENT_MAP.get(text)
     if mapped is not None:
         return mapped
-    if text.startswith("delivered"):
+    if text.startswith(("delivered", "bezorgd")):
         return ParcelStatus.DELIVERED
     return None
 

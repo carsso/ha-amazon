@@ -179,6 +179,8 @@ Order-line wording is recognised in English, Dutch, French, German, Spanish, Ita
 
 Amazon's own human-readable text is always available as `raw_status`.
 
+Amazon writes the tracking timeline in the language of your account. English and Dutch timeline wording is mapped; another language's timeline still gives the right parcel status (that comes from a language-independent code), but the individual history entries come back without one, and the log names each unmapped line so it can be added.
+
 ## Events
 
 The integration fires these on the event bus (also available as device triggers on the Amazon device):

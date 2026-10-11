@@ -98,6 +98,13 @@ precedent for any other carrier). Prefer embedded JSON state over visible text.
 - **`None` on purpose:** `sender`, `receiver`, `weight`, `dimensions`,
   `pickup_point`. `delivery_window` is in `PENDING_CAPABILITIES` until a real
   in-flight parcel shows a parseable date.
+- **The timeline is in the account's language.** `_EVENT_MAP` holds only wording a
+  real page has shown (English, plus the Dutch from an amazon.com.be page) — unlike
+  `vocabulary.py`, it has no plausible tier, because a wrong guess here silently
+  mis-states history. Messages are matched after stripping trailing `.`/`!`: Amazon
+  ends some and not others. Status resolution is unaffected either way (the
+  milestone and `shortStatus` are language-independent and answer first), so an
+  unmapped language costs history quality and log noise, not correctness.
 - **`raw` carries the whole shipment record**; privacy is the diagnostics
   redaction's job only. The one thing dropped at parse time is a third-party
   key that is not parcel data.

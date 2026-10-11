@@ -55,6 +55,14 @@ from ..payloads import (
         ("Delivered to customer", ParcelStatus.DELIVERED),
         ("Delivered to letterbox", ParcelStatus.DELIVERED),
         ("  OUT FOR DELIVERY ", ParcelStatus.OUT_FOR_DELIVERY),
+        # nl, from an amazon.com.be tracking page
+        ("Je pakket is aangekomen bij een Amazon-faciliteit", ParcelStatus.IN_TRANSIT),
+        ("Je pakket heeft een Amazon-faciliteit verlaten", ParcelStatus.IN_TRANSIT),
+        ("Pakket aangekomen bij het laatste bezorgstation", ParcelStatus.IN_TRANSIT),
+        ("Uit voor levering", ParcelStatus.OUT_FOR_DELIVERY),
+        ("Bezorgd in brievenbus", ParcelStatus.DELIVERED),
+        # The one message Amazon ends with a full stop.
+        ("Het pakket heeft de verzendingsfaciliteit verlaten.", ParcelStatus.IN_TRANSIT),
     ],
 )
 def test_event_messages_map_to_canonical_statuses(message, expected):

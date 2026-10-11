@@ -38,7 +38,7 @@ _CARRIER_HEADER_RE = re.compile(
     r'(?:pt-delivery-card-wrapper"><div><h3|tracking-event-carrier-header">\s*<h2)'
     r"[^>]*>\s*([^<]*?)\s*</h[23]>"
 )
-_TRACKING_ID_RE = re.compile(r"Tracking ID:\s*([A-Za-z0-9-]+)")
+_TRACKING_ID_RE = re.compile(r"Tracking[\s-]?ID:\s*([A-Za-z0-9-]+)", re.I)
 _STATE_RE = re.compile(
     r'<script[^>]*page-state[^>]*>\s*(\{.*?\})\s*</script>', re.S
 )
@@ -46,6 +46,17 @@ _EVENT_PART_RE = re.compile(
     r'<span class="tracking-event-(date|time|message|location)">([^<]*)</span>'
 )
 _PASSWORD_FIELD_RE = re.compile(r'<input[^>]+type="password"', re.I)
+# Proof-of-delivery photo on the delivery card. The visible images are
+# lazy-loaded, so their real URL is in ``data-src`` and ``src`` only holds a
+# placeholder; the ``<noscript>`` twin inside the same popup carries the URL in
+# a plain ``src`` and survives a class rename, so it is tried as well.
+_POD_REGION_RE = re.compile(
+    r'(?:pt-delivery-card-pod-popup|a-popover-pt-delivery-card-pod-popup-content)'
+    r'.*?(?:</div>|</span>)',
+    re.S,
+)
+_POD_IMG_RE = re.compile(r"<img\b[^>]*>", re.S)
+_POD_SRC_RE = re.compile(r'\b(data-src|src)="([^"]+)"')
 
 # Third-party map key the page embeds; it is not parcel data.
 _STATE_DROP = {"hereMapsApiKey"}
@@ -100,6 +111,7 @@ class TrackInfo:
     carrier_header: str | None = None
     events: list[dict[str, Any]] = field(default_factory=list)
     state: dict[str, Any] = field(default_factory=dict)
+    delivery_photo_url: str | None = None
 
 
 def looks_signed_out(page: str) -> bool:
@@ -307,6 +319,23 @@ def _parse_events(
     return parsed
 
 
+def parse_delivery_photo(page: str) -> str | None:
+    """Return the proof-of-delivery photo URL from a tracking page, if any.
+
+    Only Amazon's own fleet has shown this card; a third-party carrier's page
+    has no such element and yields ``None``.
+    """
+    for region in _POD_REGION_RE.findall(page):
+        for tag in _POD_IMG_RE.findall(region):
+            found = dict(_POD_SRC_RE.findall(tag))
+            for key in ("data-src", "src"):
+                url = html.unescape((found.get(key) or "").strip())
+                # A lazy placeholder is an inline data: URI, never the photo.
+                if url and not url.startswith("data:"):
+                    return url
+    return None
+
+
 def parse_track_page(page: str, today: date) -> TrackInfo:
     """Parse a ship-track page into carrier, tracking id, state and timeline."""
     state = _page_state(page)
@@ -327,6 +356,7 @@ def parse_track_page(page: str, today: date) -> TrackInfo:
         carrier_header=carrier_header,
         events=_parse_events(page, _zone(timezone), today),
         state=state,
+        delivery_photo_url=parse_delivery_photo(page),
     )
 
 
@@ -352,6 +382,7 @@ def build_record(
         "barcode_source": "tracking_id" if tracking_id else "shipment_key",
         "tracking_id": tracking_id,
         "carrier_code": track.carrier_code if track else None,
+        "delivery_photo_url": track.delivery_photo_url if track else None,
         "carrier_header": track.carrier_header if track else None,
         "order_status": lead.status_text or None,
         "order_status_note": lead.status_note,

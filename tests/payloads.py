@@ -16,6 +16,7 @@ ACTIVE_SHIPMENT = "SHIPactive1"
 DELIVERED_SHIPMENT = "SHIPdone001"
 FAKE_MAPS_KEY = "fake-maps-key-0000"
 FAKE_CUSTOMER = "CUSTOMER00000"
+FAKE_PHOTO_URL = "https://photo.test/pod/opaque-id.jpg?token=abc&exp=1"
 
 
 def tile(
@@ -75,6 +76,7 @@ def track_page(
     events: list[tuple[str, str, str, str]] | None = None,
     timezone: str | None = "Europe/Amsterdam",
     state: bool = True,
+    delivery_photo: str | None = None,
 ) -> str:
     """A ship-track page. ``events`` are ``(date, time, message, location)``."""
     parts = ["<html><body>"]
@@ -87,6 +89,23 @@ def track_page(
         )
     if tracking_id:
         parts.append(f'<div class="pt-delivery-card-trackingId">Tracking ID: {tracking_id}</div>')
+    if delivery_photo:
+        # The visible images are lazy-loaded (real URL in data-src, placeholder
+        # in src); the noscript twin carries it plainly.
+        parts.append(
+            '<span class="a-declarative" data-action="pt-delivery-card-pod-popup"'
+            """ data-pt-delivery-card-pod-popup='{"header":"Bezorgfoto"}'>"""
+            '<img alt="" class="photo-on-delivery-img-thumb a-lazy-loaded"'
+            f' data-src="{escape(delivery_photo, quote=True)}"'
+            ' src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="/>'
+            f'<noscript><img alt="" src="{escape(delivery_photo, quote=True)}"/></noscript>'
+            '</span>'
+            '<div class="a-popover-preload" id="a-popover-pt-delivery-card-pod-popup-content">'
+            '<img alt="" class="photo-on-delivery-img a-lazy-loaded"'
+            f' data-src="{escape(delivery_photo, quote=True)}" src="data:image/gif;base64,R0lGODlh"/>'
+            f'<noscript><img alt="" src="{escape(delivery_photo, quote=True)}"/></noscript>'
+            '</div>'
+        )
     last_date = None
     for day, moment, message, location in events or []:
         if day != last_date:
@@ -152,6 +171,7 @@ def delivered_record(code: str = DELIVERED_CODE) -> dict:
         "pop_path": "/-/en/your-orders/pop?orderId=" + ORDER_ID,
         "track_path": track_path(DELIVERED_SHIPMENT),
         "page_state": {"customerId": FAKE_CUSTOMER},
+        "delivery_photo_url": FAKE_PHOTO_URL,
     }
 
 
@@ -166,6 +186,8 @@ def active_record(code: str = ACTIVE_CODE) -> dict:
             "delivered_on": None,
             "milestone": "IN_PROGRESS",
             "track_path": track_path(ACTIVE_SHIPMENT),
+            # The photo only exists once Amazon's own fleet has delivered.
+            "delivery_photo_url": None,
         }
     )
     record["events"] = [

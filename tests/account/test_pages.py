@@ -7,6 +7,7 @@ from custom_components.amazon_orders.account.pages import (
     _day_month,
     build_record,
     looks_signed_out,
+    parse_delivery_photo,
     parse_order_tiles,
     parse_track_link,
     parse_track_page,
@@ -209,6 +210,35 @@ def test_track_page_reads_state_carrier_and_timeline():
     assert info.events[3]["timestamp"] == "2026-10-02T00:00:00+02:00"
 
 
+_PHOTO = "https://photo.test/pod/opaque-id.jpg?token=abc&amp;exp=1"
+_PHOTO_PLAIN = "https://photo.test/pod/opaque-id.jpg?token=abc&exp=1"
+
+
+def test_delivery_photo_is_read_from_the_lazy_data_src():
+    info = parse_track_page(track_page(delivery_photo=_PHOTO_PLAIN), TODAY)
+    assert info.delivery_photo_url == _PHOTO_PLAIN
+    # Never the lazy placeholder.
+    assert not info.delivery_photo_url.startswith("data:")
+
+
+def test_delivery_photo_is_none_without_the_card():
+    assert parse_track_page(track_page(), TODAY).delivery_photo_url is None
+
+
+def test_delivery_photo_falls_back_to_the_noscript_image():
+    page = (
+        '<html><body><div class="a-popover-preload" '
+        'id="a-popover-pt-delivery-card-pod-popup-content">'
+        f'<noscript><img alt="" src="{_PHOTO}"/></noscript></div></body></html>'
+    )
+    assert parse_delivery_photo(page) == _PHOTO_PLAIN
+
+
+def test_tracking_id_tolerates_the_dutch_label():
+    page = track_page(state=False).replace("Tracking ID:", "Tracking-id:")
+    assert parse_track_page(page, TODAY).tracking_id == ACTIVE_CODE
+
+
 def test_embedded_state_drops_the_third_party_map_key():
     info = parse_track_page(track_page(), TODAY)
     assert "hereMapsApiKey" not in info.state
@@ -330,6 +360,13 @@ def test_record_with_a_tracking_page():
     assert record["track_path"] == path
     assert record["items"] == ["Example Widget, Blue"]
     assert len(record["events"]) == 4
+    assert record["delivery_photo_url"] is None
+
+
+def test_record_carries_the_delivery_photo_url():
+    info = parse_track_page(track_page(delivery_photo=_PHOTO_PLAIN), TODAY)
+    record = build_record(COUNTRY, _tiles(), track_path(DELIVERED_SHIPMENT), info)
+    assert record["delivery_photo_url"] == _PHOTO_PLAIN
 
 
 def test_record_without_a_tracking_page_is_flagged():
@@ -340,6 +377,7 @@ def test_record_without_a_tracking_page_is_flagged():
     assert record["events"] == []
     assert record["delivered_on"] is None
     assert record["page_state"] == {}
+    assert record["delivery_photo_url"] is None
 
 
 def test_record_with_a_page_that_has_no_progress_tracker():

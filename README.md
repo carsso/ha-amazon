@@ -27,6 +27,7 @@ Built on the [ha-parcel-integrations](https://ha-parcel-integrations.github.io/)
 - [Removal](#removal)
 - [Sensors](#sensors)
 - [Parcel status reference](#parcel-status-reference)
+- [Delivery photo](#delivery-photo)
 - [Events](#events)
 - [Examples](#examples)
 - [Debugging](#debugging)
@@ -47,6 +48,7 @@ Built on the [ha-parcel-integrations](https://ha-parcel-integrations.github.io/)
 - Summary sensors: incoming parcels, next delivery, recently delivered parcels
 - Read-only **Deliveries** calendar
 - Events + device triggers for no-code automations (parcel registered, status changed, delivered)
+- Amazon's proof-of-delivery photo, for parcels Amazon's own fleet delivers (see [Delivery photo](#delivery-photo))
 - Opt-in per-parcel status history
 - Manual refresh button and a diagnostic last-update sensor
 
@@ -180,6 +182,23 @@ Order-line wording is recognised in English, Dutch, French, German, Spanish, Ita
 Amazon's own human-readable text is always available as `raw_status`.
 
 Amazon writes the tracking timeline in the language of your account. English and Dutch timeline wording is mapped; another language's timeline still gives the right parcel status (that comes from a language-independent code), but the individual history entries come back without one, and the log names each unmapped line so it can be added.
+
+## Delivery photo
+
+When Amazon's own fleet delivers a parcel it usually takes a photo of where it left it. The integration reads that photo's URL off the tracking page it already fetches — no extra request — and puts it on the parcel as `raw.delivery_photo_url`, so you can use it in a notification or on a dashboard:
+
+```yaml
+image: "{{ trigger.event.data.raw.delivery_photo_url }}"
+```
+
+A ready-to-paste automation is in [`examples/automations/notify_with_delivery_photo.yaml`](examples/automations/notify_with_delivery_photo.yaml).
+
+Two caveats:
+
+- **Only Amazon's own fleet.** A parcel carried by Dragonfly, DHL or Colis Privé has no photo, and the field is `null`.
+- **The URL is Amazon's, not ours.** It comes straight off the tracking page, is not a public link and may expire. Whether your phone or browser can load it is up to Amazon. The integration never downloads the image itself.
+
+Diagnostics redact the URL: it is a picture of your own front door, and diagnostics get pasted into public issues.
 
 ## Events
 

@@ -1,0 +1,30 @@
+# Notify with Amazon's proof-of-delivery photo once a parcel is delivered.
+#
+# Only Amazon's own fleet takes a photo: a parcel carried by a third party
+# (Dragonfly, DHL, Colis Privé) has no ``delivery_photo_url`` and this
+# automation then sends the notification without an image rather than a
+# broken one.
+#
+# The URL comes straight off Amazon's tracking page and is not public: it
+# may expire, and whether your phone can load it depends on Amazon, not on
+# Home Assistant. If the image stays blank, drop the ``image:`` line — the
+# text notification still works.
+
+alias: "Amazon: delivered, with photo"
+description: Notify when an Amazon parcel is delivered, including the delivery photo.
+mode: queued
+max: 10
+
+triggers:
+  - trigger: event
+    event_type: amazon_orders_parcel_delivered
+
+actions:
+  - action: notify.mobile_app
+    data:
+      title: "Parcel delivered"
+      message: >-
+        {{ trigger.event.data.barcode }} – {{ trigger.event.data.raw_status or 'delivered' }}
+      data:
+        clickAction: "{{ trigger.event.data.url }}"
+        image: "{{ trigger.event.data.raw.delivery_photo_url | default('', true) }}"

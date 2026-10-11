@@ -98,6 +98,17 @@ precedent for any other carrier). Prefer embedded JSON state over visible text.
 - **`None` on purpose:** `sender`, `receiver`, `weight`, `dimensions`,
   `pickup_point`. `delivery_window` is in `PENDING_CAPABILITIES` until a real
   in-flight parcel shows a parseable date.
+- **Delivery photo** (`raw["delivery_photo_url"]`, not a canonical field — a
+  contract addition was considered and deliberately not made). Only Amazon's own
+  fleet renders the card; a third-party carrier's page has none and the field is
+  `None`. It lives on the tracking page we already fetch, so it costs no extra
+  request. Parse it from the lazy `data-src`, never `src` (a `data:` placeholder),
+  and keep the `<noscript>` twin as the fallback anchor — it has no class, so it
+  survives a class rename. **Unverified:** the URL shape. The reporter's excerpt
+  had every link redacted, so whether it is a signed expiring asset or a
+  cookie-protected path is unknown, and therefore so is whether a dashboard or a
+  phone can load it at all. The README says so plainly rather than promising it
+  works; don't quietly upgrade that wording without a real URL.
 - **The timeline is in the account's language.** `_EVENT_MAP` holds only wording a
   real page has shown (English, plus the Dutch from an amazon.com.be page) — unlike
   `vocabulary.py`, it has no plausible tier, because a wrong guess here silently

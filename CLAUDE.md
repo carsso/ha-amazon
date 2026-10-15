@@ -116,16 +116,20 @@ the structured state a response carries over anything meant for display.
   Accepted, not a bug to fix by re-polling delivered parcels — the notification
   case fires minutes after the read. Don't hardcode the bucket host: it is
   regional and only one storefront's has been seen.
-- **The timeline is in the account's language.** `_EVENT_MAP` holds only wording a
-  real page has shown (English, plus the Dutch from an amazon.com.be page) — unlike
+- **The timeline is in the account's language.** `_EVENT_MAP` holds only wording
+  a real account has shown (English, plus Dutch from a Belgian storefront) — unlike
   `vocabulary.py`, it has no plausible tier, because a wrong guess here silently
   mis-states history. Messages are matched after stripping trailing `.`/`!`: Amazon
   ends some and not others. Status resolution is unaffected either way (the
   milestone and `shortStatus` are language-independent and answer first), so an
   unmapped language costs history quality and log noise, not correctness.
 - **`raw` carries the whole shipment record**; privacy is the diagnostics
-  redaction's job only. The one thing dropped at parse time is a third-party
-  key that is not parcel data.
+  redaction's job only. It has exactly one documented exception to the suite's
+  "`raw` is never trimmed" rule: `_STATE_DROP` in `account/pages.py` drops the
+  map-provider key Amazon embeds beside the delivery state. It is a
+  third-party credential rather than anything about the parcel, so it is
+  dropped where the record is read instead of being carried into every
+  parcel's attributes. Add nothing else to that set.
 - **No outgoing parcels:** the account only lists what the user ordered.
 - **Not built:** browser automation, IMAP parsing, order-level sensors,
   alexapy as a requirement, and a separate `ha-amazon-logistics` repo (Amazon

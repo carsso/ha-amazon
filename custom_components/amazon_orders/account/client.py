@@ -93,7 +93,7 @@ class AmazonClient:
             jar.update_cookies(cookie, URL(f"https://www.{self._domain}/"))
 
     async def _fetch_page(self, path: str) -> str:
-        """GET a signed-in page, mapping every failure mode to our errors."""
+        """GET one signed-in request, mapping every failure mode to our errors."""
         if self._requests:
             await asyncio.sleep(REQUEST_PAUSE_SECONDS)
         self._requests += 1

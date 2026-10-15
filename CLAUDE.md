@@ -45,9 +45,10 @@ you act in one of these areas:
 
 ## Carrier-specific notes
 
-API mechanics (sign-in chain, page structure, vocabularies, what was tried and
-failed) live in the private `carrier-research/amazon-logistics/api/` and are
-never copied here. This section keeps decisions only.
+API mechanics (the sign-in chain, the shape of each response, vocabularies,
+what was tried and failed) live in the private
+`carrier-research/amazon-logistics/api/` and are never copied here. This
+section keeps decisions only.
 
 **Sign-in durability, partly open.** The repo is public and released as 0.x;
 the maintainer built and shipped ahead of the research gate. A continuously
@@ -56,9 +57,9 @@ reauth. Still unanswered: whether a sign-in survives days with Home Assistant
 off, and whether signing in on a second install with the same account ends the
 first one's sign-in. Settle both before 1.0.0.
 
-Account model with an HTML source: the carrier-research standing ruling
-permits parsing signed-in pages for Amazon **only** (a named exception, not a
-precedent for any other carrier). Prefer embedded JSON state over visible text.
+Account model reading Amazon's own signed-in surfaces: a named maintainer
+exception for Amazon **only**, never a precedent for another carrier. Prefer
+the structured state a response carries over anything meant for display.
 
 - **One config entry per Amazon account per country** (`unique_id` =
   `<storefront>:<account id from the registration>`, else the device serial
@@ -125,10 +126,10 @@ precedent for any other carrier). Prefer embedded JSON state over visible text.
 - **`raw` carries the whole shipment record**; privacy is the diagnostics
   redaction's job only. The one thing dropped at parse time is a third-party
   key that is not parcel data.
-- **No outgoing parcels:** the signed-in pages only list what the user ordered.
+- **No outgoing parcels:** the account only lists what the user ordered.
 - **Not built:** browser automation, IMAP parsing, order-level sensors,
   alexapy as a requirement, and a separate `ha-amazon-logistics` repo (Amazon
-  Logistics has no tracking outside the signed-in pages, so it would be an
+  Logistics has no tracking outside the signed-in account, so it would be an
   empty shell fed by this integration; its parcels stay here as
   `carrier: "Amazon"`).
 
@@ -211,7 +212,7 @@ shipment is discovered.
 
 | File | Carrier-specific? |
 |---|---|
-| `account/` (the one source: `auth.py` sign-in, `client.py` page fan-out, `pages.py` HTML parsing, `parcels.py` status map + `normalize_parcel`, `coordinator.py`, `errors.py`) | **yes** |
+| `account/` (the one source: `auth.py` sign-in, `client.py` request fan-out, `pages.py` response reading, `parcels.py` status map + `normalize_parcel`, `coordinator.py`, `errors.py`) | **yes** |
 | `const.py` (domain, URLs, `ParcelStatus`, option keys) | partly (URLs) |
 | `config_flow.py` | partly (country picker and sign-in link) |
 | `sensor.py` / `button.py` / `calendar.py` / `device_trigger.py` | no |

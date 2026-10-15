@@ -39,9 +39,9 @@ KNOWN_CAPABILITIES = frozenset(
 # normalize_parcel() — never omit the key. The docs site's carrier comparison
 # table is generated straight from this constant.
 #
-# Amazon exposes no weight, dimensions or pickup point on the pages we read.
-# ``url`` is the ship-track page (or the order page when a shipment has no
-# tracking page), ``history`` is the timestamped timeline on ship-track.
+# Amazon exposes no weight, dimensions or pickup point to the account.
+# ``url`` is the shipment's own tracking link (or the order's, when a shipment
+# has none), ``history`` is the timestamped tracking timeline.
 CAPABILITIES = frozenset({"url", "history"})
 
 # Fields whose support is not confirmed yet — typically a carrier built without

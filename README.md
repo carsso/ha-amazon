@@ -13,7 +13,7 @@
 A custom Home Assistant integration that tracks your [Amazon](https://www.amazon.com) orders. Sign in to your own Amazon account once, and every shipment of your recent orders is imported automatically — no tracking codes to enter. Add the integration once per Amazon country and account you shop with.
 
 > [!WARNING]
-> **Pre-1.0.** This integration reads the pages you see when you are signed in to Amazon, not an official tracking service. Amazon can change those pages or its sign-in at any time, in which case updates fail until the integration is updated, and you may be asked to sign in again. Only delivered parcels have been confirmed so far; the statuses for parcels still on their way are mapped from the tracking timeline, and an unrecognised status shows as `unknown` and logs a warning with a link to report it.
+> **Pre-1.0.** This integration reads your own Amazon account the way you see it when signed in, not an official tracking service. Amazon can change how that works, or change its sign-in, at any time, in which case updates fail until the integration is updated, and you may be asked to sign in again. Only delivered parcels have been confirmed so far; the statuses for parcels still on their way are mapped from the tracking timeline, and an unrecognised status shows as `unknown` and logs a warning with a link to report it.
 
 Built on the [ha-parcel-integrations](https://ha-parcel-integrations.github.io/) format: it publishes the same canonical parcel format, statuses and events as the other carrier integrations, so it plugs straight into the [Parcel Aggregator](https://github.com/ha-parcel-integrations/ha-parcel-aggregator) and cross-carrier automations.
 
@@ -266,7 +266,7 @@ All third-party trademarks, trade names, product names, logos, and other brand a
 
 This integration may rely on public, unofficial, or undocumented carrier interfaces, accessed with your own account or API key where required. These may change or be withdrawn without notice and may be subject to Amazon's terms. Data is sent only to Amazon's own services or those of its group; this project operates no servers of its own. You are responsible for ensuring that your use complies with applicable law and those terms. Use is at your own risk; see the [licence](LICENSE) for warranty limitations.
 
-This integration reads the signed-in pages of the Amazon website with your own account and may break when Amazon changes them.
+This integration reads the Amazon website with your own signed-in account and may break when Amazon changes it.
 
 ## Credits
 

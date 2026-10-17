@@ -65,6 +65,7 @@ _PLAUSIBLE_TEXT: tuple[tuple[str, Kind], ...] = (
     ("remboursé", SKIP),
     # de
     ("zugestellt", ParcelStatus.DELIVERED),
+    ("heute zugestellt", ParcelStatus.DELIVERED),
     ("geliefert", ParcelStatus.DELIVERED),
     ("ankunft", ParcelStatus.IN_TRANSIT),
     ("zustellung am", ParcelStatus.IN_TRANSIT),

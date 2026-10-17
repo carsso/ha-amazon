@@ -64,6 +64,14 @@ _EVENT_MAP: dict[str, ParcelStatus] = {
     "pakket aangekomen bij het laatste bezorgstation": ParcelStatus.IN_TRANSIT,
     "uit voor levering": ParcelStatus.OUT_FOR_DELIVERY,
     "bezorgd in brievenbus": ParcelStatus.DELIVERED,
+    # de, seen on an amazon.de tracking page
+    "das paket ist an einem amazon-standort eingetroffen": ParcelStatus.IN_TRANSIT,
+    "das paket hat einen amazon-standort verlassen": ParcelStatus.IN_TRANSIT,
+    "paket ist in der letzten lieferstation angekommen": ParcelStatus.IN_TRANSIT,
+    "sendung wird zugestellt": ParcelStatus.OUT_FOR_DELIVERY,
+    "im briefkasten hinterlegt": ParcelStatus.DELIVERED,
+    "lieferung in der nähe von haustür oder veranda abgelegt": ParcelStatus.DELIVERED,
+    "die sendung wurde vom empfänger abgeholt": ParcelStatus.DELIVERED,
 }
 
 _CARRIER_NAMES = {
@@ -112,7 +120,7 @@ def _event_status(message: str | None) -> ParcelStatus | None:
     mapped = _EVENT_MAP.get(text)
     if mapped is not None:
         return mapped
-    if text.startswith(("delivered", "bezorgd")):
+    if text.startswith(("delivered", "bezorgd", "zugestellt")):
         return ParcelStatus.DELIVERED
     return None
 

@@ -300,6 +300,8 @@ def test_carrier_header_is_kept_when_its_wording_is_not_read():
     [
         ("Bezorging door COLIS_PRIVE_BELU", "COLIS_PRIVE_BELU"),
         ("Levering door Amazon", "Amazon"),
+        ("Versendet mit DHL", "DHL_CONNECT"),
+        ("Versand durch Amazon", "Amazon"),
     ],
 )
 def test_dutch_carrier_headers_are_read(header, code):

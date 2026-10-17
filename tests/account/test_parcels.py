@@ -582,3 +582,20 @@ def test_delivered_filter_keeps_unparseable_timestamp():
     """Better to show a parcel with a broken date than to silently drop it."""
     parcels = [{"barcode": "WEIRD", "delivered_at": "nonsense"}]
     assert apply_delivered_filter(parcels, _entry("days", 7)) == parcels
+
+
+@pytest.mark.parametrize(
+    "message,status",
+    [
+        ("Das Paket ist an einem Amazon-Standort eingetroffen.", ParcelStatus.IN_TRANSIT),
+        ("Das Paket hat einen Amazon-Standort verlassen.", ParcelStatus.IN_TRANSIT),
+        ("Paket ist in der letzten Lieferstation angekommen", ParcelStatus.IN_TRANSIT),
+        ("Sendung wird zugestellt.", ParcelStatus.OUT_FOR_DELIVERY),
+        ("Im Briefkasten hinterlegt", ParcelStatus.DELIVERED),
+        ("Lieferung in der Nähe von Haustür oder Veranda abgelegt", ParcelStatus.DELIVERED),
+        ("Die Sendung wurde vom Empfänger abgeholt.", ParcelStatus.DELIVERED),
+        ("Zugestellt", ParcelStatus.DELIVERED),
+    ],
+)
+def test_german_timeline_messages_are_mapped(message, status):
+    assert map_event_status(message) is status

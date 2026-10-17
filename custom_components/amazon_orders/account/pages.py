@@ -32,8 +32,11 @@ _DAY_MONTH_RE = re.compile(
 )
 _TRACK_LINK_RE = re.compile(r'href="([^"]*/ship-track\?[^"]*)"')
 _CARRIER_RE = re.compile(
-    r"(?:Delivery By|Bezorging door|Levering door) ([A-Za-z0-9_]+)"
+    r"(?:Delivery By|Bezorging door|Levering door|Versendet mit|Versand durch|Zustellung durch)"
+    r" ([A-Za-z0-9_]+)"
 )
+# amazon.de names the courier plainly instead of by its internal code.
+_CARRIER_ALIASES = {"DHL": "DHL_CONNECT"}
 _CARRIER_HEADER_RE = re.compile(
     r'(?:pt-delivery-card-wrapper"><div><h3|tracking-event-carrier-header">\s*<h2)'
     r"[^>]*>\s*([^<]*?)\s*</h[23]>"
@@ -375,7 +378,7 @@ def parse_track_page(page: str, today: date) -> TrackInfo:
     photo = parse_delivery_photo(page)
     return TrackInfo(
         tracking_id=str(tracking_id) if tracking_id else None,
-        carrier_code=carrier.group(1) if carrier else None,
+        carrier_code=_CARRIER_ALIASES.get(carrier.group(1), carrier.group(1)) if carrier else None,
         timezone=page_zone,
         carrier_header=carrier_header,
         events=_parse_events(page, _zone(page_zone), today),

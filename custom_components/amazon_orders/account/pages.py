@@ -252,6 +252,12 @@ def _page_state(page: str) -> dict[str, Any]:
     return {key: value for key, value in state.items() if key not in _STATE_DROP}
 
 
+def page_timezone(page: str) -> str | None:
+    """Return the IANA zone name a ship-track page declares, if any."""
+    name = _page_state(page).get("timezone")
+    return name if isinstance(name, str) else None
+
+
 def _zone(name: str | None) -> ZoneInfo | None:
     if not name:
         return None

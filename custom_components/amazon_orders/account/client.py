@@ -19,6 +19,7 @@ from http.cookies import SimpleCookie
 from typing import Any
 
 import aiohttp
+from homeassistant.util import dt as dt_util
 from yarl import URL
 
 from ..const import (
@@ -34,6 +35,7 @@ from .pages import (
     OrderTile,
     build_record,
     looks_signed_out,
+    page_timezone,
     parse_order_tiles,
     parse_track_link,
     parse_track_page,
@@ -155,7 +157,12 @@ class AmazonClient:
         track_path = parse_track_link(pop_page)
         track = None
         if track_path:
-            track = parse_track_page(await self._fetch_page(track_path), today)
+            track_page = await self._fetch_page(track_path)
+            # Load the page's zone off the event loop; the parser then finds
+            # it already cached.
+            if zone_name := page_timezone(track_page):
+                await dt_util.async_get_time_zone(zone_name)
+            track = parse_track_page(track_page, today)
             if track.tracking_id is None and not track.events:
                 warn_once(
                     "empty-track-page",

@@ -262,6 +262,7 @@ def _zone(name: str | None) -> ZoneInfo | None:
     if not name:
         return None
     try:
+        # suite: allow zoneinfo (loaded off the event loop by the client before parsing)
         return ZoneInfo(name)
     except (ZoneInfoNotFoundError, ValueError):
         return None

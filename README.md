@@ -54,7 +54,7 @@ Built on the [ha-parcel-integrations](https://ha-parcel-integrations.github.io/)
 
 ## Requirements
 
-- Home Assistant 2024.12 or newer
+- Home Assistant 2025.12 or newer
 - An Amazon account for the country you want to follow. You sign in on Amazon's own page in your browser, so your password never goes through Home Assistant.
 - A browser on any device to complete that sign-in once (including any verification Amazon asks for).
 

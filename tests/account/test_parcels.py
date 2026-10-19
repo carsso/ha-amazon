@@ -111,6 +111,15 @@ def test_delivered_short_status_resolves_without_milestone_or_timeline():
     assert resolve_status(raw) is ParcelStatus.DELIVERED
 
 
+def test_picked_up_short_status_is_delivered_without_a_warning(caplog):
+    raw = untracked_record()
+    raw["order_status"] = "Something unseen"
+    raw["page_state"] = {"shortStatus": "PICKED_UP"}
+    with caplog.at_level(logging.WARNING):
+        assert resolve_status(raw) is ParcelStatus.DELIVERED
+    assert "short_status=PICKED_UP" not in caplog.text
+
+
 def test_unmapped_short_status_falls_back_and_is_reported_once(caplog):
     raw = active_record()
     raw["milestone"] = None

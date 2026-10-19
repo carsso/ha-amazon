@@ -39,10 +39,12 @@ _MILESTONE_MAP: dict[str, ParcelStatus] = {
     "DELIVERED": ParcelStatus.DELIVERED,
 }
 
-# The tracking page's language-independent status code. Only ``DELIVERED``
-# has been observed; the rest is reported once so the map can grow.
+# The tracking page's language-independent status code. Anything not listed
+# is reported once so the map can grow. ``PICKED_UP`` is the recipient
+# collecting the parcel, e.g. from a parcel locker.
 _SHORT_STATUS_MAP: dict[str, ParcelStatus] = {
     "DELIVERED": ParcelStatus.DELIVERED,
+    "PICKED_UP": ParcelStatus.DELIVERED,
 }
 
 # Timeline messages, lower-cased and stripped of trailing punctuation. Every

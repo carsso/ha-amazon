@@ -66,7 +66,11 @@ Built on the [ha-parcel-integrations](https://ha-parcel-integrations.github.io/)
 
 1. In HACS, choose the three-dot menu → **Custom repositories**.
 2. Add `https://github.com/ha-parcel-integrations/ha-amazon` as an **Integration**.
-3. Install **Amazon** and restart Home Assistant.
+3. Install **Amazon** and restart Home Assistant if HACS asks you to.
+
+Or click the button below to open it directly in HACS:
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ha-parcel-integrations&repository=ha-amazon&category=integration)
 
 ### Manual
 
@@ -74,7 +78,9 @@ Copy `custom_components/amazon_orders` into your `config/custom_components/` fol
 
 ## Configuration
 
-Add the integration via **Settings → Devices & Services → Add Integration → Amazon**.
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=amazon_orders)
+
+Or set it up by hand: add the integration via **Settings → Devices & Services → Add Integration → Amazon**.
 
 1. Pick the Amazon country you shop on.
 2. Open the sign-in link shown in your own browser. It is Amazon's sign-in for the Alexa app. That is expected: Home Assistant signs in as an Alexa device, so it gets a lasting sign-in without ever seeing your password.

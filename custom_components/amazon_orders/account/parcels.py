@@ -6,6 +6,7 @@ objects beyond the config entry's options. The status resolution and
 parsing, history builder, sort contract, delivered filter and the one-shot
 warning for unmapped statuses are suite-wide machinery.
 """
+
 from __future__ import annotations
 
 import logging
@@ -189,8 +190,8 @@ def _resolve_without_milestone(raw: dict, milestone: str | None) -> ParcelStatus
     """Fall back to the newest mappable event, then the order text."""
     events = sorted(
         (e for e in raw.get("events") or [] if isinstance(e, dict)),
-        key=lambda e: parse_iso(e.get("timestamp")) or datetime.min.replace(
-            tzinfo=timezone.utc
+        key=lambda e: (
+            parse_iso(e.get("timestamp")) or datetime.min.replace(tzinfo=timezone.utc)
         ),
         reverse=True,
     )
@@ -332,8 +333,9 @@ def _raw_status(raw: dict) -> str | None:
     """Return the most specific text Amazon gave: newest event, else order line."""
     newest = sorted(
         (e for e in raw.get("events") or [] if isinstance(e, dict)),
-        key=lambda e: parse_iso(e.get("timestamp"))
-        or datetime.min.replace(tzinfo=timezone.utc),
+        key=lambda e: (
+            parse_iso(e.get("timestamp")) or datetime.min.replace(tzinfo=timezone.utc)
+        ),
     )
     if newest and newest[-1].get("message"):
         return newest[-1]["message"]
@@ -403,9 +405,7 @@ def apply_delivered_filter(parcels: list[dict], entry: ConfigEntry) -> list[dict
     shows.
     """
     options = entry.options
-    filter_type = options.get(
-        CONF_DELIVERED_FILTER_TYPE, DEFAULT_DELIVERED_FILTER_TYPE
-    )
+    filter_type = options.get(CONF_DELIVERED_FILTER_TYPE, DEFAULT_DELIVERED_FILTER_TYPE)
     amount = int(
         options.get(CONF_DELIVERED_FILTER_AMOUNT, DEFAULT_DELIVERED_FILTER_AMOUNT)
     )

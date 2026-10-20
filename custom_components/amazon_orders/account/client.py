@@ -10,6 +10,7 @@ still moving. The contract the coordinator relies on:
 * ``async_get_parcels`` returns one raw record per shipment,
 * ``aiohttp.ClientError`` propagates untouched.
 """
+
 from __future__ import annotations
 
 import asyncio

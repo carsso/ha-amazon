@@ -5,6 +5,7 @@ Pure-function tests for the tiering/scheduling helpers, plus a few
 integration checks that ``_async_update_data`` wires them up: the account
 never fully stops, and a 429 triggers the Section 3 backoff.
 """
+
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 
@@ -86,7 +87,10 @@ def test_stagger_is_stable_and_bounded():
 
 
 def test_tier_is_idle_when_nothing_active():
-    assert _hottest_tier_minutes([], datetime(2026, 1, 1, 12, tzinfo=UTC)) == IDLE_INTERVAL_MINUTES
+    assert (
+        _hottest_tier_minutes([], datetime(2026, 1, 1, 12, tzinfo=UTC))
+        == IDLE_INTERVAL_MINUTES
+    )
 
 
 def test_tier_is_mid_for_non_hot_statuses():
@@ -253,9 +257,7 @@ async def test_non_429_api_error_still_propagates(hass):
     entry = _entry()
     entry.add_to_hass(hass)
     client = AsyncMock()
-    client.async_get_parcels.side_effect = AmazonApiError(
-        "HTTP 500", status_code=500
-    )
+    client.async_get_parcels.side_effect = AmazonApiError("HTTP 500", status_code=500)
     coordinator = AmazonCoordinator(hass, client, entry)
 
     with pytest.raises(AmazonApiError):

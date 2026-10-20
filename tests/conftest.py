@@ -1,4 +1,5 @@
 """pytest configuration for the Amazon test suite."""
+
 import sys
 
 import pytest

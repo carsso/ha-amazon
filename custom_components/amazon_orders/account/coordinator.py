@@ -2,6 +2,7 @@
 
 Fetching and event firing only — the parcel mapping lives in :mod:`.parcels`.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -152,9 +153,9 @@ class AmazonCoordinator(DataUpdateCoordinator[list[dict]]):
         # that already existed when the integration started — otherwise every
         # restart would flood users with "registered" notifications.
         self._known_state: dict[str, ParcelStatus] | None = None
-        self._known_delivery_times: (
-            dict[str, tuple[str | None, str | None]] | None
-        ) = None
+        self._known_delivery_times: dict[str, tuple[str | None, str | None]] | None = (
+            None
+        )
         # Cached device id, attached to every fired event so device-trigger
         # automations can filter to this account's device.
         self._cached_device_id: str | None = None
@@ -190,9 +191,7 @@ class AmazonCoordinator(DataUpdateCoordinator[list[dict]]):
     def _include_history(self) -> bool:
         """Whether the opt-in per-parcel history option is enabled."""
         return bool(
-            self.config_entry.options.get(
-                CONF_INCLUDE_HISTORY, DEFAULT_INCLUDE_HISTORY
-            )
+            self.config_entry.options.get(CONF_INCLUDE_HISTORY, DEFAULT_INCLUDE_HISTORY)
         )
 
     async def _async_update_data(self) -> list[dict]:

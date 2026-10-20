@@ -1,4 +1,5 @@
 """Config flow for the Amazon parcel tracker integration."""
+
 from __future__ import annotations
 
 import logging
@@ -216,9 +217,7 @@ class AmazonOptionsFlowHandler(OptionsFlow):
             # Reload so a changed history/delivered-retention setting takes
             # effect immediately. No update listener is registered —
             # combining the two is deprecated.
-            self.hass.config_entries.async_schedule_reload(
-                self.config_entry.entry_id
-            )
+            self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
             return self.async_create_entry(
                 title="",
                 data={

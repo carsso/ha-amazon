@@ -1,4 +1,5 @@
 """Tests for the order-line wording and month tables."""
+
 import pytest
 
 from custom_components.amazon_orders.account.vocabulary import (
@@ -81,11 +82,27 @@ def test_longest_prefix_wins_and_every_prefix_is_listed():
 @pytest.mark.parametrize(
     "name,number",
     [
-        ("october", 10), ("oct", 10), ("sept", 9), ("märz", 3), ("okt", 10),
-        ("dez", 12), ("janv", 1), ("févr", 2), ("juil", 7), ("août", 8),
-        ("décembre", 12), ("septembre", 9), ("novembre", 11),
-        ("octubre", 10), ("ottobre", 10), ("oktober", 10), ("października", 10),
-        ("mrt", 3), ("maj", 5), ("stycznia", 1), ("września", 9),
+        ("october", 10),
+        ("oct", 10),
+        ("sept", 9),
+        ("märz", 3),
+        ("okt", 10),
+        ("dez", 12),
+        ("janv", 1),
+        ("févr", 2),
+        ("juil", 7),
+        ("août", 8),
+        ("décembre", 12),
+        ("septembre", 9),
+        ("novembre", 11),
+        ("octubre", 10),
+        ("ottobre", 10),
+        ("oktober", 10),
+        ("października", 10),
+        ("mrt", 3),
+        ("maj", 5),
+        ("stycznia", 1),
+        ("września", 9),
     ],
 )
 def test_month_names(name, number):

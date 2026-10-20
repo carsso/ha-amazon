@@ -4,6 +4,7 @@ Pure functions over HTML text. Wherever the page embeds JSON state that is
 preferred over the visible text; the visible text is only read for what the
 state does not carry (the order line's status, the event timeline).
 """
+
 from __future__ import annotations
 
 import html
@@ -42,9 +43,7 @@ _CARRIER_HEADER_RE = re.compile(
     r"[^>]*>\s*([^<]*?)\s*</h[23]>"
 )
 _TRACKING_ID_RE = re.compile(r"Tracking[\s-]?ID:\s*([A-Za-z0-9-]+)", re.I)
-_STATE_RE = re.compile(
-    r'<script[^>]*page-state[^>]*>\s*(\{.*?\})\s*</script>', re.S
-)
+_STATE_RE = re.compile(r"<script[^>]*page-state[^>]*>\s*(\{.*?\})\s*</script>", re.S)
 _EVENT_PART_RE = re.compile(
     r'<span class="tracking-event-(date|time|message|location)">([^<]*)</span>'
 )
@@ -54,8 +53,8 @@ _PASSWORD_FIELD_RE = re.compile(r'<input[^>]+type="password"', re.I)
 # placeholder; the ``<noscript>`` twin inside the same popup carries the URL in
 # a plain ``src`` and survives a class rename, so it is tried as well.
 _POD_REGION_RE = re.compile(
-    r'(?:pt-delivery-card-pod-popup|a-popover-pt-delivery-card-pod-popup-content)'
-    r'.*?(?:</div>|</span>)',
+    r"(?:pt-delivery-card-pod-popup|a-popover-pt-delivery-card-pod-popup-content)"
+    r".*?(?:</div>|</span>)",
     re.S,
 )
 _POD_IMG_RE = re.compile(r"<img\b[^>]*>", re.S)
@@ -268,8 +267,26 @@ def _zone(name: str | None) -> ZoneInfo | None:
         return None
 
 
-_TODAY_WORDS = {"today", "vandaag", "heute", "aujourd'hui", "hoy", "oggi", "idag", "dzisiaj"}
-_YESTERDAY_WORDS = {"yesterday", "gisteren", "gestern", "hier", "ayer", "ieri", "igår", "wczoraj"}
+_TODAY_WORDS = {
+    "today",
+    "vandaag",
+    "heute",
+    "aujourd'hui",
+    "hoy",
+    "oggi",
+    "idag",
+    "dzisiaj",
+}
+_YESTERDAY_WORDS = {
+    "yesterday",
+    "gisteren",
+    "gestern",
+    "hier",
+    "ayer",
+    "ieri",
+    "igår",
+    "wczoraj",
+}
 
 
 def _parse_time(text: str) -> time | None:
@@ -385,7 +402,9 @@ def parse_track_page(page: str, today: date) -> TrackInfo:
     photo = parse_delivery_photo(page)
     return TrackInfo(
         tracking_id=str(tracking_id) if tracking_id else None,
-        carrier_code=_CARRIER_ALIASES.get(carrier.group(1), carrier.group(1)) if carrier else None,
+        carrier_code=_CARRIER_ALIASES.get(carrier.group(1), carrier.group(1))
+        if carrier
+        else None,
         timezone=page_zone,
         carrier_header=carrier_header,
         events=_parse_events(page, _zone(page_zone), today),

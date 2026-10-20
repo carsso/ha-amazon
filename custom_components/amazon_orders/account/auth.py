@@ -1,4 +1,5 @@
 """Amazon device sign-in, adapted from alexapy (Apache-2.0), https://gitlab.com/keatontaylor/alexapy."""
+
 from __future__ import annotations
 
 import base64
@@ -258,7 +259,9 @@ async def exchange_token_for_cookies(
         f"https://www.{domain}/ap/exchangetoken/cookies", data=data
     ) as response:
         if _is_rejection(response.status):
-            raise AmazonAuthError(f"HTTP {response.status}", status_code=response.status)
+            raise AmazonAuthError(
+                f"HTTP {response.status}", status_code=response.status
+            )
         if response.status != 200:
             raise AmazonApiError(f"HTTP {response.status}", status_code=response.status)
         body = await _json_object(response)

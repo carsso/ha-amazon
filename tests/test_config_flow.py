@@ -1,4 +1,5 @@
 """Tests for the Amazon config and options flow."""
+
 from unittest.mock import AsyncMock, patch
 from urllib.parse import parse_qs, urlparse
 
@@ -25,9 +26,7 @@ from custom_components.amazon_orders.const import (
 )
 
 COUNTRY = "amazon.nl"
-LANDING = (
-    "https://www.amazon.com/ap/maplanding?openid.oa2.authorization_code=CODE123"
-)
+LANDING = "https://www.amazon.com/ap/maplanding?openid.oa2.authorization_code=CODE123"
 REGISTER = "custom_components.amazon_orders.config_flow.register_device"
 CUSTOMER = "amzn1.account.TESTACCOUNT1"
 
@@ -240,7 +239,9 @@ async def test_reauth_with_another_account_is_refused(hass):
     entry.add_to_hass(hass)
 
     result = await entry.start_reauth_flow(hass)
-    with patch(REGISTER, new=AsyncMock(return_value=_registration("amzn1.account.OTHER"))):
+    with patch(
+        REGISTER, new=AsyncMock(return_value=_registration("amzn1.account.OTHER"))
+    ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {CONF_LANDING_URL: LANDING}
         )
@@ -290,9 +291,7 @@ async def test_options_flow_saves_and_reloads(hass):
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["step_id"] == "init"
 
-    with patch.object(
-        hass.config_entries, "async_schedule_reload"
-    ) as schedule_reload:
+    with patch.object(hass.config_entries, "async_schedule_reload") as schedule_reload:
         result = await hass.config_entries.options.async_configure(
             result["flow_id"],
             {

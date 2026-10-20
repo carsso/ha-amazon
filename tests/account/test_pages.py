@@ -1,4 +1,5 @@
 """Tests for the HTML page parsers."""
+
 from datetime import date
 
 import pytest
@@ -135,7 +136,9 @@ def test_tile_without_an_order_id_is_ignored():
 
 def test_title_with_commas_and_entities_survives():
     page = orders_page(
-        tile(ACTIVE_SHIPMENT, "Arriving today", None, title="Cable, 1 m & plug, 2 items")
+        tile(
+            ACTIVE_SHIPMENT, "Arriving today", None, title="Cable, 1 m & plug, 2 items"
+        )
     )
     (parsed,) = parse_order_tiles(page, TODAY)
     assert parsed.title == "Cable, 1 m & plug, 2 items"
@@ -280,13 +283,17 @@ def test_tracking_id_falls_back_to_the_visible_text():
 
 
 def test_page_without_any_tracking_id():
-    info = parse_track_page(track_page(tracking_id=None, carrier=None, state=False), TODAY)
+    info = parse_track_page(
+        track_page(tracking_id=None, carrier=None, state=False), TODAY
+    )
     assert info.tracking_id is None
     assert info.carrier_code is None
 
 
 def test_carrier_header_is_kept_when_its_wording_is_not_read():
-    info = parse_track_page(track_page(carrier_header="Bezorgd door Testcarrier"), TODAY)
+    info = parse_track_page(
+        track_page(carrier_header="Bezorgd door Testcarrier"), TODAY
+    )
     assert info.carrier_code is None
     assert info.carrier_header == "Bezorgd door Testcarrier"
 
@@ -442,7 +449,9 @@ def test_undispatched_line_without_any_ids_is_keyed_on_its_position():
 
 
 def test_order_id_is_found_in_the_path_when_not_in_the_query():
-    page = orders_page(_bare_tile("/-/en/your-orders/order-details/000-0000003-0000003"))
+    page = orders_page(
+        _bare_tile("/-/en/your-orders/order-details/000-0000003-0000003")
+    )
     (parsed,) = parse_order_tiles(page, TODAY)
     assert parsed.order_id == "000-0000003-0000003"
 

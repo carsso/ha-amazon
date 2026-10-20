@@ -1,4 +1,5 @@
 """A scripted stand-in for ``aiohttp.ClientSession`` shared by the HTTP tests."""
+
 from __future__ import annotations
 
 from types import SimpleNamespace

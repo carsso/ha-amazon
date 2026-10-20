@@ -2,6 +2,7 @@
 
 The parcel mapping itself is covered by ``test_parcels.py``.
 """
+
 from unittest.mock import AsyncMock
 
 import pytest
@@ -123,9 +124,7 @@ async def test_event_carries_device_id(hass):
     coordinator = AmazonCoordinator(hass, client, entry)
 
     events = []
-    hass.bus.async_listen(
-        f"{DOMAIN}_parcel_status_changed", lambda e: events.append(e)
-    )
+    hass.bus.async_listen(f"{DOMAIN}_parcel_status_changed", lambda e: events.append(e))
 
     client.async_get_parcels.return_value = [in_transit_record()]
     await coordinator._async_update_data()
@@ -143,9 +142,7 @@ async def test_fires_status_changed_event(hass):
     coordinator = AmazonCoordinator(hass, client, entry)
 
     events = []
-    hass.bus.async_listen(
-        f"{DOMAIN}_parcel_status_changed", lambda e: events.append(e)
-    )
+    hass.bus.async_listen(f"{DOMAIN}_parcel_status_changed", lambda e: events.append(e))
 
     client.async_get_parcels.return_value = [in_transit_record()]
     await coordinator._async_update_data()  # first refresh: suppressed
@@ -338,8 +335,12 @@ async def test_a_line_with_no_recognised_status_and_no_tracking_is_not_incoming(
     coordinator = AmazonCoordinator(hass, client, entry)
     unreadable = active_record()
     unreadable.update(
-        tracking_id=None, track_path=None, milestone=None, events=[],
-        order_status="Gibberish", barcode_source="shipment_key",
+        tracking_id=None,
+        track_path=None,
+        milestone=None,
+        events=[],
+        order_status="Gibberish",
+        barcode_source="shipment_key",
     )
     client.async_get_parcels.return_value = [unreadable, active_record()]
 

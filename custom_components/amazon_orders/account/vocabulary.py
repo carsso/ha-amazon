@@ -6,6 +6,7 @@ written from how Amazon is expected to phrase things and have not been seen in
 the wild; resolving a status through one is reported once so it can be
 confirmed or corrected.
 """
+
 from __future__ import annotations
 
 from typing import Final

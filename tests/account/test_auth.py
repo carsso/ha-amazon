@@ -1,4 +1,5 @@
 """Tests for the device sign-in helpers."""
+
 from urllib.parse import parse_qs, urlparse
 
 import pytest
@@ -69,7 +70,9 @@ def test_swedish_and_polish_storefronts_sign_in_in_their_language(domain, langua
 
 
 def test_authorization_code_is_pulled_from_the_landing_url():
-    url = "https://www.amazon.com/ap/maplanding?openid.oa2.authorization_code=ABC123&x=1"
+    url = (
+        "https://www.amazon.com/ap/maplanding?openid.oa2.authorization_code=ABC123&x=1"
+    )
     assert extract_authorization_code(f"  {url}  ") == "ABC123"
 
 
@@ -90,7 +93,9 @@ async def test_registration_returns_the_tokens_and_the_answering_host():
     session = FakeSession()
     session.add("POST", "/auth/register", FakeResponse(200, REGISTERED))
 
-    host, registration = await register_device(session, DOMAIN, "SERIAL", "verifier", "CODE")
+    host, registration = await register_device(
+        session, DOMAIN, "SERIAL", "verifier", "CODE"
+    )
 
     assert host == f"api.{DOMAIN}"
     assert registration.refresh_token == "Atnr|refresh"
@@ -100,7 +105,9 @@ async def test_registration_returns_the_tokens_and_the_answering_host():
     assert payload["auth_data"]["authorization_code"] == "CODE"
     assert payload["auth_data"]["code_verifier"] == "verifier"
     assert payload["registration_data"]["device_serial"] == "SERIAL"
-    assert payload["registration_data"]["device_name"].endswith("Home Assistant Parcels")
+    assert payload["registration_data"]["device_name"].endswith(
+        "Home Assistant Parcels"
+    )
     assert payload["cookies"]["domain"] == f".{DOMAIN}"
     assert registration.customer_id is None
     assert registration.customer_name is None
@@ -242,7 +249,12 @@ COOKIES = {
         "tokens": {
             "cookies": {
                 f".{DOMAIN}": [
-                    {"Name": "session-id", "Value": '"abc"', "Path": "/", "Secure": True}
+                    {
+                        "Name": "session-id",
+                        "Value": '"abc"',
+                        "Path": "/",
+                        "Secure": True,
+                    }
                 ]
             }
         }

@@ -5,6 +5,7 @@ is. Handing a parcel to the carrier's integration gives the user its delivery
 window, pickup point and full history. Whatever the carrier does not accept
 simply stays listed here.
 """
+
 from __future__ import annotations
 
 import logging

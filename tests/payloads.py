@@ -3,6 +3,7 @@
 Everything here is invented: ids, names and places do not belong to anyone.
 The page builders reproduce only the structure the parser reads.
 """
+
 from __future__ import annotations
 
 import json
@@ -40,9 +41,15 @@ def tile(
     tail = f", {status}" + (f", {note}" if note else "") if status else ""
     label = escape(f"{title}, Order placed {placed}{tail}")
     href = (
-        "/-/en/your-orders/pop?ref=ppx_test&orderId=" + order_id
-        + "&lineItemId=" + line_item + "&shipmentId=" + shipment_id
-        + "&packageId=" + package_id + "&asin=B000TEST00"
+        "/-/en/your-orders/pop?ref=ppx_test&orderId="
+        + order_id
+        + "&lineItemId="
+        + line_item
+        + "&shipmentId="
+        + shipment_id
+        + "&packageId="
+        + package_id
+        + "&asin=B000TEST00"
     )
     return (
         f'<li><a class="item-card__link" href="{escape(href)}" '
@@ -94,7 +101,9 @@ def track_page(
             f'<div><h3 class="a-spacing-small">{carrier_header}</h3>'
         )
     if tracking_id:
-        parts.append(f'<div class="pt-delivery-card-trackingId">Tracking ID: {tracking_id}</div>')
+        parts.append(
+            f'<div class="pt-delivery-card-trackingId">Tracking ID: {tracking_id}</div>'
+        )
     if delivery_photo:
         # The visible images are lazy-loaded (real URL in data-src, placeholder
         # in src); the noscript twin carries it plainly.
@@ -105,12 +114,12 @@ def track_page(
             f' data-src="{escape(delivery_photo, quote=True)}"'
             ' src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="/>'
             f'<noscript><img alt="" src="{escape(delivery_photo, quote=True)}"/></noscript>'
-            '</span>'
+            "</span>"
             '<div class="a-popover-preload" id="a-popover-pt-delivery-card-pod-popup-content">'
             '<img alt="" class="photo-on-delivery-img a-lazy-loaded"'
             f' data-src="{escape(delivery_photo, quote=True)}" src="data:image/gif;base64,R0lGODlh"/>'
             f'<noscript><img alt="" src="{escape(delivery_photo, quote=True)}"/></noscript>'
-            '</div>'
+            "</div>"
         )
     last_date = None
     for day, moment, message, location in events or []:
@@ -143,7 +152,12 @@ def track_page(
 DELIVERED_EVENTS = [
     ("Saturday, 3 October", "10:36 am", "Delivered to customer", ""),
     ("Saturday, 3 October", "8:05 am", "Out for delivery", ""),
-    ("Saturday, 3 October", "2:55 am", "Parcel arrived at a carrier facility", "Testville, NL"),
+    (
+        "Saturday, 3 October",
+        "2:55 am",
+        "Parcel arrived at a carrier facility",
+        "Testville, NL",
+    ),
     ("Friday, 2 October", "", "Package left the courier facility", ""),
 ]
 
@@ -170,7 +184,11 @@ def delivered_record(code: str = DELIVERED_CODE) -> dict:
         "events": [
             event("2026-10-03T10:36:00+02:00", "Delivered to customer"),
             event("2026-10-03T08:05:00+02:00", "Out for delivery"),
-            event("2026-10-03T02:55:00+02:00", "Parcel arrived at a carrier facility", "Testville, NL"),
+            event(
+                "2026-10-03T02:55:00+02:00",
+                "Parcel arrived at a carrier facility",
+                "Testville, NL",
+            ),
             event("2026-10-02T00:00:00+02:00", "Package left the courier facility"),
         ],
         "items": ["Example Widget, Blue"],

@@ -1,4 +1,5 @@
 """Error types shared by the Amazon account modules."""
+
 from __future__ import annotations
 
 

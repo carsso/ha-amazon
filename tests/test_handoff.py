@@ -1,4 +1,5 @@
 """Tests for handing parcels over to the suite's carrier integrations."""
+
 import logging
 from unittest.mock import AsyncMock, patch
 
@@ -25,7 +26,9 @@ from .payloads import (
     untracked_record,
 )
 
-PARCELS = "custom_components.amazon_orders.account.client.AmazonClient.async_get_parcels"
+PARCELS = (
+    "custom_components.amazon_orders.account.client.AmazonClient.async_get_parcels"
+)
 DRAGONFLY_CODE = ACTIVE_CODE
 DHL_CODE = "AMZNL000000000003"
 
@@ -233,6 +236,7 @@ async def test_an_old_code_still_listed_is_kept(hass):
     await _refresh(hass, entry, fetch, [_record()])
     assert DRAGONFLY_CODE in handoff._handed
 
+
 async def test_a_delivered_parcel_stays_with_the_carrier(hass):
     _register(hass, "dragonfly", "track_parcel")
     entry, fetch = await _setup(hass, [_record()])
@@ -240,6 +244,7 @@ async def test_a_delivered_parcel_stays_with_the_carrier(hass):
     await _refresh(hass, entry, fetch, [delivered_record(DRAGONFLY_CODE)])
     assert _incoming(hass) == "0"
     assert DRAGONFLY_CODE in entry.runtime_data.coordinator.handoff._handed
+
 
 async def test_turning_the_option_off_shows_parcels_again_without_untracking(hass):
     _register(hass, "dragonfly", "track_parcel")
@@ -255,6 +260,7 @@ async def test_turning_the_option_off_shows_parcels_again_without_untracking(has
     assert untrack == []
     assert _incoming(hass) == "1"
     assert entry.runtime_data.coordinator.handoff._handed == {}
+
 
 async def test_with_the_option_off_nothing_is_handed_off(hass):
     track = _register(hass, "dragonfly", "track_parcel")

@@ -1,4 +1,5 @@
 """Tests for the Amazon page client: auth, fan-out caps and failure mapping."""
+
 from datetime import date, timedelta
 
 import pytest
@@ -27,7 +28,12 @@ COOKIES = {
         "tokens": {
             "cookies": {
                 f".{COUNTRY}": [
-                    {"Name": "session-id", "Value": '"abc"', "Path": "/", "Secure": True},
+                    {
+                        "Name": "session-id",
+                        "Value": '"abc"',
+                        "Path": "/",
+                        "Secure": True,
+                    },
                     {"Name": "at-main", "Value": "def", "Secure": False},
                 ]
             }
@@ -395,7 +401,8 @@ async def test_a_rejected_refresh_token_is_an_auth_error():
 
 
 @pytest.mark.parametrize(
-    "headers,expected", [({"Retry-After": "90"}, 90.0), ({"Retry-After": "Wed, 1 Jan"}, None), ({}, None)]
+    "headers,expected",
+    [({"Retry-After": "90"}, 90.0), ({"Retry-After": "Wed, 1 Jan"}, None), ({}, None)],
 )
 async def test_rate_limited_page_reports_retry_after(headers, expected):
     session = _session()
@@ -422,9 +429,7 @@ async def test_a_failing_pop_page_fails_the_poll():
 
 async def test_a_tracking_page_with_nothing_on_it_warns_once(caplog):
     session = _session(_active_tile("SHIPactive1"))
-    _shipment(
-        session, "SHIPactive1", tracking_id=None, carrier=None, state=False
-    )
+    _shipment(session, "SHIPactive1", tracking_id=None, carrier=None, state=False)
     client = _client(session)
 
     await client.async_get_parcels()

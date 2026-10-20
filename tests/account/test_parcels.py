@@ -3,6 +3,7 @@
 These need no Home Assistant instance — ``parcels.py`` is free of I/O so the
 carrier-specific mapping can be tested as plain functions.
 """
+
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -62,7 +63,10 @@ from ..payloads import (
         ("Uit voor levering", ParcelStatus.OUT_FOR_DELIVERY),
         ("Bezorgd in brievenbus", ParcelStatus.DELIVERED),
         # The one message Amazon ends with a full stop.
-        ("Het pakket heeft de verzendingsfaciliteit verlaten.", ParcelStatus.IN_TRANSIT),
+        (
+            "Het pakket heeft de verzendingsfaciliteit verlaten.",
+            ParcelStatus.IN_TRANSIT,
+        ),
     ],
 )
 def test_event_messages_map_to_canonical_statuses(message, expected):
@@ -407,7 +411,9 @@ def test_normalize_delivered_parcel():
     assert parcel["planned_to"] is None
     assert parcel["pickup"] is False
     assert parcel["pickup_point"] is None
-    assert parcel["url"].startswith("https://www.amazon.nl/-/en/gp/your-account/ship-track?")
+    assert parcel["url"].startswith(
+        "https://www.amazon.nl/-/en/gp/your-account/ship-track?"
+    )
     assert parcel["weight"] is None
     assert parcel["dimensions"] is None
     assert parcel["history"] is None  # opt-in, default off
@@ -521,7 +527,10 @@ def test_normalize_keeps_the_full_raw_record():
 
 
 def test_tracking_url_accepts_absolute_and_missing_paths():
-    assert tracking_url({"track_path": "https://example.test/x"}) == "https://example.test/x"
+    assert (
+        tracking_url({"track_path": "https://example.test/x"})
+        == "https://example.test/x"
+    )
     assert tracking_url({}) is None
 
 
@@ -596,12 +605,18 @@ def test_delivered_filter_keeps_unparseable_timestamp():
 @pytest.mark.parametrize(
     "message,status",
     [
-        ("Das Paket ist an einem Amazon-Standort eingetroffen.", ParcelStatus.IN_TRANSIT),
+        (
+            "Das Paket ist an einem Amazon-Standort eingetroffen.",
+            ParcelStatus.IN_TRANSIT,
+        ),
         ("Das Paket hat einen Amazon-Standort verlassen.", ParcelStatus.IN_TRANSIT),
         ("Paket ist in der letzten Lieferstation angekommen", ParcelStatus.IN_TRANSIT),
         ("Sendung wird zugestellt.", ParcelStatus.OUT_FOR_DELIVERY),
         ("Im Briefkasten hinterlegt", ParcelStatus.DELIVERED),
-        ("Lieferung in der Nähe von Haustür oder Veranda abgelegt", ParcelStatus.DELIVERED),
+        (
+            "Lieferung in der Nähe von Haustür oder Veranda abgelegt",
+            ParcelStatus.DELIVERED,
+        ),
         ("Die Sendung wurde vom Empfänger abgeholt.", ParcelStatus.DELIVERED),
         ("Zugestellt", ParcelStatus.DELIVERED),
     ],

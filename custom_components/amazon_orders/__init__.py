@@ -1,4 +1,5 @@
 """Amazon parcel tracker custom component for Home Assistant."""
+
 from __future__ import annotations
 
 import logging
@@ -30,9 +31,7 @@ class AmazonData:
 type AmazonConfigEntry = ConfigEntry[AmazonData]
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: AmazonConfigEntry
-) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: AmazonConfigEntry) -> bool:
     """Set up Amazon from a config entry."""
     # Each config entry needs its own cookie jar, or two storefronts overwrite
     # each other's cookies in the shared session. The connector is reused
@@ -86,9 +85,7 @@ async def async_setup_entry(
     return True
 
 
-async def async_unload_entry(
-    hass: HomeAssistant, entry: AmazonConfigEntry
-) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: AmazonConfigEntry) -> bool:
     """Unload an Amazon config entry."""
     if await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         await entry.runtime_data.session.close()

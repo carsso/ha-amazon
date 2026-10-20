@@ -161,6 +161,7 @@ class HandOff:
             target = _hand_off_target(parcel)
             if (
                 target is None
+                or code is None
                 or parcel["delivered"]
                 or code in self._failed
                 or not self._started

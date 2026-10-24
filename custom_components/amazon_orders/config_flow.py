@@ -136,9 +136,21 @@ class AmazonConfigFlow(ConfigFlow, domain=DOMAIN):
                     unique_id = self._unique_id(registration)
                     if self.source == "reauth":
                         entry = self._get_reauth_entry()
-                        # An entry from before accounts were told apart is keyed
-                        # on the country alone; its first reauth adopts the account.
-                        if entry.unique_id not in (self._domain, unique_id):
+                        # An entry keyed on the country alone (from before
+                        # accounts were told apart) or on its device serial
+                        # (Amazon named no account) has nothing to check
+                        # against, so its reauth adopts the new key.
+                        serial_key = (
+                            f"{self._domain}:{entry.data.get(CONF_DEVICE_SERIAL)}"
+                        )
+                        if entry.unique_id in (self._domain, serial_key):
+                            if any(
+                                other.unique_id == unique_id
+                                for other in self._async_current_entries()
+                                if other.entry_id != entry.entry_id
+                            ):
+                                return self.async_abort(reason="already_configured")
+                        elif entry.unique_id != unique_id:
                             return self.async_abort(reason="wrong_account")
                         return self.async_update_reload_and_abort(
                             entry, unique_id=unique_id, data_updates=data

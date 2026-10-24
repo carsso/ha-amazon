@@ -65,8 +65,11 @@ the structured state a response carries over anything meant for display.
   `<storefront>:<account id from the registration>`, else the device serial
   when Amazon names no account); `single_config_entry` is deliberately not
   set. Entries from 0.2.0 and earlier are keyed on the storefront alone and
-  adopt the account key on their first reauth; reauth with another account
-  aborts `wrong_account`.
+  adopt the account key on their first reauth, as does an entry keyed on its
+  serial (Amazon named no account): neither has an account to check against,
+  so its reauth takes the new key, unless another entry already holds it
+  (`already_configured`). Reauth of an account-keyed entry with another
+  account aborts `wrong_account`.
 - **Sign-in is a pasted link, never a password form.** Entry data holds the
   storefront, the refresh token and the device serial, all redacted in
   diagnostics. Never fall back to a password login.

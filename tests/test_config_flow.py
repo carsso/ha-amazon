@@ -266,6 +266,55 @@ async def test_reauth_of_a_country_keyed_entry_adopts_the_account(hass):
     assert entry.unique_id == f"{COUNTRY}:{CUSTOMER}"
 
 
+async def test_reauth_of_a_serial_keyed_entry_succeeds(hass):
+    entry = _entry(unique_id=f"{COUNTRY}:OLDSERIAL")
+    entry.add_to_hass(hass)
+
+    result = await entry.start_reauth_flow(hass)
+    with patch(REGISTER, new=AsyncMock(return_value=_registration(None))):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_LANDING_URL: LANDING}
+        )
+        await hass.async_block_till_done()
+
+    assert result["reason"] == "reauth_successful"
+    new_serial = entry.data[CONF_DEVICE_SERIAL]
+    assert new_serial != "OLDSERIAL"
+    # Keyed on the new serial, so the next reauth matches again.
+    assert entry.unique_id == f"{COUNTRY}:{new_serial}"
+
+
+async def test_reauth_of_a_serial_keyed_entry_adopts_a_named_account(hass):
+    entry = _entry(unique_id=f"{COUNTRY}:OLDSERIAL")
+    entry.add_to_hass(hass)
+
+    result = await entry.start_reauth_flow(hass)
+    with patch(REGISTER, new=AsyncMock(return_value=REGISTRATION)):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_LANDING_URL: LANDING}
+        )
+        await hass.async_block_till_done()
+
+    assert result["reason"] == "reauth_successful"
+    assert entry.unique_id == f"{COUNTRY}:{CUSTOMER}"
+
+
+async def test_reauth_does_not_adopt_an_account_another_entry_holds(hass):
+    _entry().add_to_hass(hass)
+    entry = _entry(unique_id=COUNTRY)
+    entry.add_to_hass(hass)
+
+    result = await entry.start_reauth_flow(hass)
+    with patch(REGISTER, new=AsyncMock(return_value=REGISTRATION)):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_LANDING_URL: LANDING}
+        )
+
+    assert result["reason"] == "already_configured"
+    assert entry.unique_id == COUNTRY
+    assert entry.data[CONF_REFRESH_TOKEN] == "old-refresh"
+
+
 async def test_reauth_surfaces_a_rejected_sign_in(hass):
     entry = _entry()
     entry.add_to_hass(hass)

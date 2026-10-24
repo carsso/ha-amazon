@@ -214,8 +214,8 @@ which exposes more (delivery window, pickup point, full history).
 - **Carrier in the table but not set up:** one Repair issue **per carrier
   domain** (not per parcel, not per entry), linking to that carrier's page on
   the docs site; not fixable, ignorable. It is deleted when the carrier's
-  service appears, never when the parcels needing it go away (that would
-  re-nag a user who ignored it).
+  service appears, or with the last Amazon entry, never when the parcels
+  needing it go away (that would re-nag a user who ignored it).
 - **Carrier in the suite without `track_parcel`** (account-based: PostNL, DPD,
   …): no hand-off, no Repair issue. The carrier account already shows the
   parcel; de-duplication is the aggregator's job (carrier record wins over the

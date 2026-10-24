@@ -13,8 +13,8 @@ from homeassistant.helpers.start import async_at_started
 
 from .account.client import AmazonClient
 from .account.coordinator import AmazonCoordinator, business_lines_store
-from .const import CONF_COUNTRY, CONF_REFRESH_TOKEN, PLATFORMS
-from .handoff import HandOff
+from .const import CONF_COUNTRY, CONF_REFRESH_TOKEN, DOMAIN, PLATFORMS
+from .handoff import HandOff, async_clear_issues
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -93,6 +93,13 @@ async def async_unload_entry(hass: HomeAssistant, entry: AmazonConfigEntry) -> b
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: AmazonConfigEntry) -> None:
-    """Forget what this entry stored: hand-offs and Business lines."""
+    """Forget what this entry stored: hand-offs, Business lines, issues."""
     await HandOff(hass, entry.entry_id, entry.options).async_remove()
     await business_lines_store(hass, entry.entry_id).async_remove()
+    # The carrier issues are shared by every entry, so only the last one
+    # removed takes them along.
+    if not any(
+        other.entry_id != entry.entry_id
+        for other in hass.config_entries.async_entries(DOMAIN)
+    ):
+        async_clear_issues(hass)

@@ -42,6 +42,12 @@ def issue_id(carrier_domain: str) -> str:
     return f"carrier_not_set_up_{carrier_domain}"
 
 
+def async_clear_issues(hass: HomeAssistant) -> None:
+    """Drop every carrier issue, once no Amazon entry is left to need one."""
+    for domain, _, _ in HAND_OFF_CARRIERS.values():
+        ir.async_delete_issue(hass, DOMAIN, issue_id(domain))
+
+
 def _hand_off_target(parcel: dict[str, Any]) -> str | None:
     """Return the carrier domain this parcel belongs to, else ``None``."""
     raw = parcel["raw"]

@@ -342,6 +342,22 @@ async def test_the_remembered_codes_survive_a_reload(hass):
     assert _incoming(hass) == "0"
 
 
+async def test_the_carrier_issue_goes_with_the_last_amazon_entry(hass):
+    entry, _ = await _setup(hass, [_record(DHL_CODE, "DHL_CONNECT")])
+    other = MockConfigEntry(domain=DOMAIN, unique_id=f"{COUNTRY}:OTHER")
+    other.add_to_hass(hass)
+    issues = ir.async_get(hass)
+    assert issues.async_get_issue(DOMAIN, issue_id("dhl")) is not None
+
+    assert await hass.config_entries.async_remove(entry.entry_id)
+    await hass.async_block_till_done()
+    assert issues.async_get_issue(DOMAIN, issue_id("dhl")) is not None
+
+    assert await hass.config_entries.async_remove(other.entry_id)
+    await hass.async_block_till_done()
+    assert issues.async_get_issue(DOMAIN, issue_id("dhl")) is None
+
+
 async def test_removing_the_entry_forgets_the_stored_state(hass):
     _register(hass, "dragonfly", "track_parcel")
     entry, _ = await _setup(hass, [_record()])

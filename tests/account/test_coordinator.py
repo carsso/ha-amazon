@@ -284,6 +284,44 @@ async def test_a_stand_in_turning_into_its_tracking_id_is_not_new(hass):
     assert [event.data["barcode"] for event in changed] == ["AMZNL000000000999"]
 
 
+async def test_a_parcel_the_delivered_list_leaves_out_still_fires_delivered(hass):
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title=COUNTRY,
+        unique_id=COUNTRY,
+        data={"country": COUNTRY, "refresh_token": "token", "device_serial": "SERIAL"},
+        options={
+            CONF_DELIVERED_FILTER_TYPE: "parcels",
+            CONF_DELIVERED_FILTER_AMOUNT: 1,
+        },
+    )
+    entry.add_to_hass(hass)
+    client = fake_client()
+    coordinator = AmazonCoordinator(hass, client, entry)
+    events = []
+    hass.bus.async_listen(f"{DOMAIN}_parcel_delivered", lambda e: events.append(e))
+
+    older, newer = delivered_record("AMZNL000000000777"), delivered_record()
+    older["delivered_on"] = "2026-10-01"
+    older["shipment_id"] = "SHIPolder01"
+    client.async_get_parcels.return_value = [
+        active_record("AMZNL000000000777"),
+        active_record(),
+    ]
+    await coordinator._async_update_data()
+    client.async_get_parcels.return_value = [
+        {**older, "tracking_id": "AMZNL000000000777"},
+        {**newer, "tracking_id": ACTIVE_CODE},
+    ]
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert sorted(event.data["barcode"] for event in events) == sorted(
+        ["AMZNL000000000777", ACTIVE_CODE]
+    )
+    assert len(coordinator.delivered) == 1
+
+
 def _with_window(monkeypatch, window: dict[str, str | None]):
     """Amazon reports no window, so inject one to exercise the shared event path."""
     from custom_components.amazon_orders.account import coordinator as module

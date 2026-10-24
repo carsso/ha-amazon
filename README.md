@@ -1,8 +1,5 @@
 # Amazon Parcel Tracker
 
-> [!CAUTION]
-> **Experimental test build.** This integration is a trial and is not (yet) part of the [ha-parcel-integrations](https://ha-parcel-integrations.github.io/) carrier list. Amazon is a shop, not a carrier: one order can be delivered by Amazon's own couriers, by DHL or by another carrier, so the same parcel may also show up in that carrier's integration. How Amazon will fit into the parcel integrations is still being worked out. Until then this integration may be renamed, restructured or withdrawn, and updates may change entities without notice. Use it for testing only.
-
 [![Release](https://img.shields.io/github/v/release/ha-parcel-integrations/ha-amazon.svg)](https://github.com/ha-parcel-integrations/ha-amazon/releases)
 [![Downloads](https://img.shields.io/github/downloads/ha-parcel-integrations/ha-amazon/total.svg)](https://github.com/ha-parcel-integrations/ha-amazon/releases)
 [![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)

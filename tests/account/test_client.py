@@ -1,6 +1,7 @@
 """Tests for the Amazon page client: auth, fan-out caps and failure mapping."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -391,6 +392,27 @@ async def test_order_lines_of_one_shipment_cost_one_read():
 
     assert record["items"] == ["Example Widget, Blue", "Second item"]
     assert sum("pop?" in url for url in _gets(session)) == 1
+
+
+async def test_today_is_home_assistant_s_day_not_the_os_s(monkeypatch):
+    # 23:30 UTC is already the next day in Amsterdam.
+    monkeypatch.setattr(
+        client_module.dt_util,
+        "now",
+        lambda: datetime(2026, 10, 5, 23, 30, tzinfo=timezone.utc).astimezone(
+            ZoneInfo("Europe/Amsterdam")
+        ),
+    )
+    seen: list[date] = []
+
+    async def fetch_tiles(today):
+        seen.append(today)
+        return []
+
+    client = AmazonClient("amazon.nl", "refresh", _session())
+    monkeypatch.setattr(client, "_fetch_tiles", fetch_tiles)
+    assert await client.async_get_parcels() == []
+    assert seen == [date(2026, 10, 6)]
 
 
 async def test_pause_between_page_loads(monkeypatch):

@@ -332,7 +332,8 @@ class AmazonClient:
     async def async_get_parcels(self) -> list[dict[str, Any]]:
         """Return one raw record per shipment worth showing."""
         await self._authenticate()
-        today = date.today()
+        # Home Assistant's zone, not the OS's: a container often runs on UTC.
+        today = dt_util.now().date()
         tiles = await self._fetch_tiles(today)
 
         groups: dict[_ShipmentKey, list[OrderTile]] = {}

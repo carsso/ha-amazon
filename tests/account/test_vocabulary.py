@@ -24,6 +24,7 @@ from custom_components.amazon_orders.const import ParcelStatus
         ("Return complete", SKIP),
         ("Refund for this return", SKIP),
         ("Bezorgd op 8 oktober", ParcelStatus.DELIVERED),
+        ("Vandaag bezorgd", ParcelStatus.DELIVERED),
         ("Wordt vandaag bezorgd", ParcelStatus.OUT_FOR_DELIVERY),
         ("Wordt morgen bezorgd", ParcelStatus.IN_TRANSIT),
         ("Livré : 5 octobre", ParcelStatus.DELIVERED),
@@ -55,7 +56,6 @@ def test_unknown_and_empty_text_classify_as_nothing():
 @pytest.mark.parametrize(
     "text,kind",
     [
-        ("Vandaag bezorgd", ParcelStatus.OUT_FOR_DELIVERY),
         ("Wordt bezorgd donderdag", ParcelStatus.IN_TRANSIT),
         ("Wordt donderdag bezorgd", ParcelStatus.IN_TRANSIT),
         ("Geannuleerd", SKIP),

@@ -28,6 +28,7 @@ _CONFIRMED_TEXT: tuple[tuple[str, Kind], ...] = (
     ("refund", SKIP),
     # nl, seen on amazon.com.be order lines
     ("bezorgd", ParcelStatus.DELIVERED),
+    ("vandaag bezorgd", ParcelStatus.DELIVERED),
     ("wordt vandaag bezorgd", ParcelStatus.OUT_FOR_DELIVERY),
     ("wordt morgen bezorgd", ParcelStatus.IN_TRANSIT),
     # fr, seen on amazon.fr order lines
@@ -46,7 +47,6 @@ _PLAUSIBLE_TEXT: tuple[tuple[str, Kind], ...] = (
     # nl
     ("verwacht", ParcelStatus.IN_TRANSIT),
     ("aankomst", ParcelStatus.IN_TRANSIT),
-    ("vandaag bezorgd", ParcelStatus.OUT_FOR_DELIVERY),
     ("wordt bezorgd", ParcelStatus.IN_TRANSIT),
     ("wordt maandag bezorgd", ParcelStatus.IN_TRANSIT),
     ("wordt dinsdag bezorgd", ParcelStatus.IN_TRANSIT),

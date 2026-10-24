@@ -117,6 +117,14 @@ def test_unanchored_label_with_commas_in_the_title_finds_the_status():
     assert (parsed.delivered_on.month, parsed.delivered_on.day) == (9, 19)
 
 
+def test_a_belgian_line_delivered_today_is_dated_today(caplog):
+    page = orders_page(tile(DELIVERED_SHIPMENT, "Vandaag bezorgd", None))
+    (parsed,) = parse_order_tiles(page, TODAY)
+    assert parsed.delivered is True
+    assert parsed.delivered_on == TODAY
+    assert caplog.text == ""
+
+
 def test_a_belgian_line_due_tomorrow_reads_as_in_transit(caplog):
     page = (
         '<a class="item-card__link" '

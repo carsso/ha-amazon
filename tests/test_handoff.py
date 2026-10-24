@@ -280,7 +280,7 @@ async def test_with_the_option_off_nothing_is_handed_off(hass):
     assert _incoming(hass) == "1"
 
 
-async def test_nothing_is_handed_off_before_home_assistant_started(hass):
+async def test_nothing_is_handed_off_before_home_assistant_started(hass, caplog):
     track = _register(hass, "dragonfly", "track_parcel")
     hass.set_state(CoreState.starting)
     entry, _ = await _setup(hass, [_record(), _record(DHL_CODE, "DHL_CONNECT")])
@@ -297,6 +297,12 @@ async def test_nothing_is_handed_off_before_home_assistant_started(hass):
     assert track == [{"tracking_code": DRAGONFLY_CODE}]
     assert _incoming(hass) == "1"
     assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id("dhl")) is not None
+
+    # Saving the options reloads the entry after the start listener fired.
+    with patch(PARCELS, new=AsyncMock(return_value=[_record()])):
+        assert await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+    assert "Unable to remove unknown job listener" not in caplog.text
 
 
 async def test_the_remembered_codes_survive_a_reload(hass):

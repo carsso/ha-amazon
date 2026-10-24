@@ -7,9 +7,9 @@ from dataclasses import dataclass
 
 import aiohttp
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
-from homeassistant.core import CoreState, Event, HomeAssistant
+from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.start import async_at_started
 
 from .account.client import AmazonClient
 from .account.coordinator import AmazonCoordinator, business_lines_store
@@ -72,12 +72,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: AmazonConfigEntry) -> bo
     if hass.state is not CoreState.running:
         # During startup a carrier may not have registered its services yet,
         # which would read as "not installed" and strand the parcel here.
-        async def _hand_off(_: Event) -> None:
+        # async_at_started, not bus.async_listen_once: unsubscribing a
+        # one-time listener that already fired logs an error on reload.
+        async def _hand_off(_: HomeAssistant) -> None:
             await coordinator.async_hand_off_after_start()
 
-        entry.async_on_unload(
-            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _hand_off)
-        )
+        entry.async_on_unload(async_at_started(hass, _hand_off))
 
     # No entry.add_update_listener: the options flow calls
     # async_schedule_reload itself. Combining an update listener with a

@@ -442,9 +442,14 @@ async def test_pause_between_page_loads(monkeypatch):
     session = _session(_active_tile("SHIPactive1"))
     _shipment(session, "SHIPactive1", milestone="IN_PROGRESS")
 
-    await _client(session).async_get_parcels()
-
+    client = _client(session)
+    await client.async_get_parcels()
     assert sleeps == [1.5, 1.5]  # before pop and before track, not before orders
+
+    # The next poll starts without a pause again.
+    sleeps.clear()
+    await client.async_get_parcels()
+    assert sleeps == [1.5, 1.5]
 
 
 async def test_regional_api_host_is_remembered_between_polls():

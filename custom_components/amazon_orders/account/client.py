@@ -332,6 +332,8 @@ class AmazonClient:
 
     async def async_get_parcels(self) -> list[dict[str, Any]]:
         """Return one raw record per shipment worth showing."""
+        # The pause is between the loads of one poll, not before its first.
+        self._requests = 0
         await self._authenticate()
         # Home Assistant's zone, not the OS's: a container often runs on UTC.
         today = dt_util.now().date()

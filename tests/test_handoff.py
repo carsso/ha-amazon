@@ -305,6 +305,30 @@ async def test_nothing_is_handed_off_before_home_assistant_started(hass, caplog)
     assert "Unable to remove unknown job listener" not in caplog.text
 
 
+async def test_turning_hand_off_off_takes_effect_on_the_reload(hass):
+    _register(hass, "dragonfly", "track_parcel")
+    entry, fetch = await _setup(hass, [_record()])
+    assert _incoming(hass) == "0"
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    with patch(PARCELS, new=fetch):
+        await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {
+                "delivered": {
+                    "delivered_filter_type": "days",
+                    "delivered_filter_amount": 7,
+                },
+                "history": {"include_history": False},
+                "hand_off": {CONF_HAND_OFF: False},
+            },
+        )
+        await hass.async_block_till_done()
+
+    assert entry.runtime_data.coordinator.handoff.enabled is False
+    assert _incoming(hass) == "1"
+
+
 async def test_the_remembered_codes_survive_a_reload(hass):
     track = _register(hass, "dragonfly", "track_parcel")
     entry, _ = await _setup(hass, [_record()])

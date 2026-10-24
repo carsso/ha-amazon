@@ -236,9 +236,11 @@ which exposes more (delivery window, pickup point, full history).
 
 ## Options and reloads
 
-One sectioned options form (delivered retention, history, hand-off). The submit calls
-`async_schedule_reload` and registers **no** update listener; combining a
-listener with a reload-on-update flow is deprecated, an error in HA 2026.12+.
+One sectioned options form (delivered retention, history, hand-off). The flow is an
+`OptionsFlowWithReload` and registers **no** update listener (the two may not be
+combined). Don't call `async_schedule_reload` from the submit instead: that
+reload starts before the new options are saved, so anything built from
+`entry.options` at setup (the hand-off switch) keeps the old value.
 
 ## Dynamic polling
 

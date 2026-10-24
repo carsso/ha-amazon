@@ -12,7 +12,7 @@ from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
-    OptionsFlow,
+    OptionsFlowWithReload,
 )
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import section
@@ -203,7 +203,7 @@ class AmazonConfigFlow(ConfigFlow, domain=DOMAIN):
         return await self.async_step_sign_in()
 
 
-class AmazonOptionsFlowHandler(OptionsFlow):
+class AmazonOptionsFlowHandler(OptionsFlowWithReload):
     """Manage delivered retention, history and hand-off in one sectioned form."""
 
     async def async_step_init(
@@ -214,10 +214,8 @@ class AmazonOptionsFlowHandler(OptionsFlow):
             delivered = user_input["delivered"]
             history = user_input["history"]
             hand_off = user_input["hand_off"]
-            # Reload so a changed history/delivered-retention setting takes
-            # effect immediately. No update listener is registered —
-            # combining the two is deprecated.
-            self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
+            # OptionsFlowWithReload reloads once the new options are saved; a
+            # reload scheduled here would start before that, on the old ones.
             return self.async_create_entry(
                 title="",
                 data={

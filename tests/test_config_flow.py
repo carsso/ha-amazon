@@ -311,7 +311,7 @@ async def test_options_flow_saves_and_reloads(hass):
         CONF_INCLUDE_HISTORY: True,
         CONF_HAND_OFF: False,
     }
-    # A changed setting only takes effect on reload, so the flow schedules one
-    # itself rather than registering an update listener (which is deprecated in
-    # combination with reloading).
+    # A changed setting only takes effect on reload, which OptionsFlowWithReload
+    # schedules once the new options are saved.
     schedule_reload.assert_called_once_with(entry.entry_id)
+    assert entry.options[CONF_HAND_OFF] is False

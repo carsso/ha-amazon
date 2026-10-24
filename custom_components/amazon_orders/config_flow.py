@@ -125,7 +125,7 @@ class AmazonConfigFlow(ConfigFlow, domain=DOMAIN):
                     )
                 except AmazonAuthError:
                     errors["base"] = "sign_in_failed"
-                except (AmazonApiError, aiohttp.ClientError):
+                except (AmazonApiError, aiohttp.ClientError, TimeoutError):
                     errors["base"] = "cannot_connect"
                 else:
                     data = {

@@ -147,6 +147,7 @@ async def test_pasted_address_without_a_code_asks_again(hass):
         (AmazonAuthError("HTTP 400"), "sign_in_failed"),
         (AmazonApiError("HTTP 500"), "cannot_connect"),
         (aiohttp.ClientError("boom"), "cannot_connect"),
+        (TimeoutError(), "cannot_connect"),
     ],
 )
 async def test_registration_failures_are_told_apart(hass, error, expected):

@@ -129,14 +129,14 @@ async def _post_api(
     otherwise a single host's outage would look like a rejected sign-in.
     """
     statuses: list[int] = []
-    last_error: aiohttp.ClientError | None = None
+    last_error: aiohttp.ClientError | TimeoutError | None = None
     for host in _api_hosts(domain, preferred_host):
         try:
             async with session.post(f"https://{host}{path}", **request) as response:
                 if response.status == 200:
                     return host, await _json_object(response)
                 statuses.append(response.status)
-        except aiohttp.ClientConnectorError as err:
+        except (aiohttp.ClientError, TimeoutError) as err:
             last_error = err
     if not statuses:
         assert last_error is not None

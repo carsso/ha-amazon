@@ -2,6 +2,7 @@
 
 from urllib.parse import parse_qs, urlparse
 
+import aiohttp
 import pytest
 
 from custom_components.amazon_orders.account.auth import (
@@ -146,6 +147,21 @@ async def test_registration_falls_back_to_the_global_host():
 async def test_registration_falls_back_when_the_regional_host_is_unreachable():
     session = FakeSession()
     session.add("POST", f"api.{DOMAIN}", connector_error())
+    session.add("POST", FALLBACK_API_HOST, FakeResponse(200, REGISTERED))
+
+    host, _ = await register_device(session, DOMAIN, "S", "v", "c")
+
+    assert host == FALLBACK_API_HOST
+
+
+@pytest.mark.parametrize(
+    "error",
+    [aiohttp.ServerDisconnectedError(), TimeoutError()],
+    ids=["disconnected", "timeout"],
+)
+async def test_registration_falls_back_on_any_regional_failure(error):
+    session = FakeSession()
+    session.add("POST", f"api.{DOMAIN}", error)
     session.add("POST", FALLBACK_API_HOST, FakeResponse(200, REGISTERED))
 
     host, _ = await register_device(session, DOMAIN, "S", "v", "c")

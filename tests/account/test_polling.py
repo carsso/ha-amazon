@@ -7,7 +7,7 @@ never fully stops, and a 429 triggers the Section 3 backoff.
 """
 
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
@@ -262,3 +262,28 @@ async def test_non_429_api_error_still_propagates(hass):
 
     with pytest.raises(AmazonApiError):
         await coordinator._async_update_data()
+
+
+async def test_failed_poll_drops_the_overnight_interval(hass):
+    entry = _entry()
+    entry.add_to_hass(hass)
+    client = AsyncMock()
+    client.async_get_parcels.return_value = []
+    coordinator = AmazonCoordinator(hass, client, entry)
+    coordinator.update_interval = timedelta(hours=5, minutes=40)
+
+    noon = datetime(2026, 1, 15, 12, tzinfo=UTC)
+    with (
+        patch.object(coordinator, "_async_poll", side_effect=TimeoutError),
+        patch(
+            "custom_components.amazon_orders.account.coordinator.dt_util.now",
+            return_value=noon,
+        ),
+        pytest.raises(TimeoutError),
+    ):
+        await coordinator._async_update_data()
+
+    assert coordinator.update_interval is not None
+    assert coordinator.update_interval <= timedelta(
+        minutes=IDLE_INTERVAL_MINUTES + STAGGER_MINUTES
+    )

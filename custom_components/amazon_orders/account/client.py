@@ -49,7 +49,7 @@ from .pages import (
     parse_track_link,
     parse_track_page,
 )
-from .parcels import _delivered_at, warn_once
+from .parcels import _delivered_at, resolve_status, warn_once
 from .vocabulary import classify_order_text
 
 _LOGGER = logging.getLogger(__name__)
@@ -323,7 +323,8 @@ class AmazonClient:
         The milestone can say delivered before the order line carries the
         delivery date; reading it once more the next day picks that date up.
         """
-        if not (tiles[0].delivered or record.get("milestone") == "DELIVERED"):
+        # The resolved status, so a parcel collected from a locker counts too.
+        if not (tiles[0].delivered or resolve_status(record) is ParcelStatus.DELIVERED):
             return False
         if _delivered_at(record) is not None:
             return True

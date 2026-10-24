@@ -184,11 +184,27 @@ async def test_a_delivered_milestone_without_a_date_is_read_again_the_next_day()
     assert sum("ship-track" in url for url in _gets(session)) == 2
 
     (key,) = client._undated
-    client._undated[key] = date.today() - timedelta(days=1)
+    client._undated[key] = client_module.dt_util.now().date() - timedelta(days=1)
     await client.async_get_parcels()
     await client.async_get_parcels()
     assert sum("ship-track" in url for url in _gets(session)) == 3
     assert client._undated == {}
+
+
+async def test_a_parcel_collected_from_a_locker_is_cached_too():
+    session = _session(_active_tile("SHIPlocker1"))
+    _shipment(
+        session,
+        "SHIPlocker1",
+        milestone=None,
+        short_status="PICKED_UP",
+        events=DELIVERED_EVENTS,
+    )
+    client = _client(session)
+
+    await client.async_get_parcels()
+    await client.async_get_parcels()
+    assert sum("ship-track" in url for url in _gets(session)) == 1
 
 
 async def test_in_flight_shipment_is_re_read_every_poll():

@@ -82,23 +82,30 @@ the structured state a response carries over anything meant for display.
   on a stand-in from its order and line (flagged in `raw["barcode_source"]`),
   which changes to the tracking id if one appears later.
 - **Status resolution:** milestone, else the tracking page's `shortStatus`
-  (language-independent; only `DELIVERED` seen, an unmapped value warns once
-  like a milestone), else newest mappable timeline event, else
-  order-line text (`account/vocabulary.py`), else `unknown` + one warning. A line
+  (language-independent; an unmapped value warns once like a milestone), else
+  newest mappable timeline event, else order-line text (`account/vocabulary.py`), else `unknown` + one warning. A line
   with no tracking page and no recognised text is `unknown`, never `registered`,
   and is kept out of the incoming list (`coordinator.unresolved`); only an
   explicitly recognised not-yet-dispatched text gives `registered`. Cancelled,
   returned and refunded lines are skipped at parse time. The vocabulary has a
-  confirmed table (English, plus the Dutch seen on amazon.com.be) and a separate
+  confirmed table (English, plus the Dutch seen on amazon.com.be and the French
+  seen on amazon.fr) and a separate
   plausible table (the other languages and the unseen wording): resolving through a plausible entry logs a
   one-shot confirmation request, and an entry moves to confirmed only once a real
-  line shows it. Only the `DELIVERED` milestone has been observed: do not add
-  milestone names no capture has shown. An unmapped milestone warns once even
-  when the timeline resolves the status (maintainer decision): that warning is
+  line shows it. Milestones and short statuses are mapped only once a
+  real page has shown them (`ORDERED`, `SHIPPED`, `OUT_FOR_DELIVERY`,
+  `DELIVERED`; `ORDER_PLACED`, `IN_TRANSIT`, `OUT_FOR_DELIVERY`, `DELIVERED`,
+  `PICKED_UP`): do not add names no capture has shown. An unmapped milestone
+  warns once even when the timeline resolves the status (maintainer decision): that warning is
   how the milestone map grows, so don't silence it.
 - **`None` on purpose:** `sender`, `receiver`, `weight`, `dimensions`,
-  `pickup_point`. `delivery_window` is in `PENDING_CAPABILITIES` until a real
-  in-flight parcel shows a parseable date.
+  `pickup_point`.
+- **Delivery window** only when the tracking page predicts one: the times come
+  from the promise text, the day from the countdown to the window's end, and the
+  two must agree within an hour or the window is dropped with a one-shot
+  warning. Never on a delivered parcel. Seen on amazon.fr only.
+- **Delivered day** from the order line's date, else from a relative word
+  (today, yesterday, a French weekday within the past week).
 - **Delivery photo** (`raw["delivery_photo_url"]`, not a canonical field — a
   contract addition was considered and deliberately not made). Only Amazon's own
   fleet renders the card; a third-party carrier's page has none and the field is
@@ -117,7 +124,8 @@ the structured state a response carries over anything meant for display.
   case fires minutes after the read. Don't hardcode the bucket host: it is
   regional and only one storefront's has been seen.
 - **The timeline is in the account's language.** `_EVENT_MAP` holds only wording
-  a real account has shown (English, plus Dutch from a Belgian storefront) — unlike
+  a real account has shown (English, plus Dutch, German and French from the
+  Belgian, German and French storefronts) — unlike
   `vocabulary.py`, it has no plausible tier, because a wrong guess here silently
   mis-states history. Messages are matched after stripping trailing `.`/`!`: Amazon
   ends some and not others. Status resolution is unaffected either way (the
@@ -130,6 +138,27 @@ the structured state a response carries over anything meant for display.
   third-party credential rather than anything about the parcel, so it is
   dropped where the record is read instead of being carried into every
   parcel's attributes. Add nothing else to that set.
+- **An order line may link straight to its tracking page** (amazon.fr does
+  for in-flight lines): it is then read as the tracking page, one request
+  instead of two. Only the tracking page's own path counts, never a sub-path
+  under it: a delivered line's page links a delivery-feedback survey there
+  ahead of the real tracking link, so the tracking-link pattern stays narrow.
+- **Amazon Business** (seen on amazon.fr): the orders page is an empty shell
+  and the list comes from a separate call whose parameters and anti-forgery
+  token the shell carries; the client switches to it only when the shell
+  says Business and the page has no consumer tile, so other accounts are
+  untouched. One page only (newest first, last three months, "ordered by
+  you"), enough for incoming parcels. A rejected token gets one fresh shell,
+  then reads as an auth error. An empty list warns once: a malformed call
+  returns the same empty list as an account without orders. In-flight cards
+  link to the tracking page; a delivered card links to an order page with no
+  tracking and is never followed, so the client remembers each line's
+  shipment and tracking link (keyed on order and title) to keep the same
+  parcel when its card turns delivered. That memory is persisted per entry
+  (a `Store`, removed with the entry) so a restart does not change the
+  barcode, and an empty list never prunes it. A delivered card it never saw in
+  flight is keyed on its order and a digest of its title, never on its place
+  in the list.
 - **No outgoing parcels:** the account only lists what the user ordered.
 - **Not built:** browser automation, IMAP parsing, order-level sensors,
   alexapy as a requirement, and a separate `ha-amazon-logistics` repo (Amazon
@@ -150,7 +179,13 @@ which exposes more (delivery window, pickup point, full history).
 - **Mapping is a fixed table** from Amazon `carrier_code` to HA domain
   (`DHL_CONNECT -> dhl`, `COLIS_PRIVE_BELU -> colis_prive`,
   `DRAGONFLY -> dragonfly`). DHL goes to `dhl`, never `dhl_nl` (no
-  `track_parcel` there).
+  `track_parcel` there). On amazon.fr only, a tracking page naming no courier
+  (no header, or the generic one) whose id has the Colissimo shape is shown
+  as La Poste (`carrier_code: "LA_POSTE"`, not an Amazon code;
+  `raw["carrier_guessed"]`, one-shot warning). Never guess on another
+  storefront or over a header we could not read, and **never hand off a
+  guess** (maintainer decision): a wrong one would hide the parcel here and
+  strand it at the carrier. Lift that only once a real hand-off confirms it.
 - **Hand off only when `hass.services.has_service(domain, "track_parcel")`**,
   and only after `EVENT_HOMEASSISTANT_STARTED`: during startup the carrier may
   not have registered its service yet, which would read as "not installed".

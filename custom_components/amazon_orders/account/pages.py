@@ -7,6 +7,7 @@ state does not carry (the order line's status, the event timeline).
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import re
@@ -23,17 +24,23 @@ from .vocabulary import MONTHS, SKIP, STATUS_PREFIXES, classify_order_text
 _TILE_RE = re.compile(
     r'<a class="item-card__link" href="([^"]*)" aria-label="([^"]*)"', re.S
 )
+_PLACED_ANCHOR = r"(?:Order placed|Commande effectuée le)"
 _PLACED_RE = re.compile(
-    r"Order placed (\d{1,2} [A-Za-z]+ \d{4})(?:, (?P<tail>.*))?$", re.S
+    _PLACED_ANCHOR + r" (\d{1,2} [^\W\d_]+ \d{4})(?:, (?P<tail>.*))?$", re.S
 )
+_TITLE_END_RE = re.compile(", " + _PLACED_ANCHOR)
 _ORDER_ID_RE = re.compile(r"\d{3}-\d{7}-\d{7}")
 # "3 October", "3. Oktober", "3 de octubre", "3 Oct. 2026".
 _DAY_MONTH_RE = re.compile(
     r"(\d{1,2})\.?\s+(?:de\s+)?([^\W\d_]+)\.?(?:\s+(?:de\s+)?(\d{4}))?"
 )
 _TRACK_LINK_RE = re.compile(r'href="([^"]*/ship-track\?[^"]*)"')
+# A sub-path such as the delivery-feedback survey is not a tracking page.
+_TRACK_PAGE_PATH_RE = re.compile(
+    r"/(?:progress-tracker/package|gp/your-account/ship-track)(?:/ref=[^/]*)?/?$"
+)
 _CARRIER_RE = re.compile(
-    r"(?:Delivery By|Bezorging door|Levering door|Versendet mit|Versand durch|Zustellung durch)"
+    r"(?:Delivery By|Livraison par|Bezorging door|Levering door|Versendet mit|Versand durch|Zustellung durch)"
     r" ([A-Za-z0-9_]+)"
 )
 # amazon.de names the courier plainly instead of by its internal code.
@@ -42,7 +49,9 @@ _CARRIER_HEADER_RE = re.compile(
     r'(?:pt-delivery-card-wrapper"><div><h3|tracking-event-carrier-header">\s*<h2)'
     r"[^>]*>\s*([^<]*?)\s*</h[23]>"
 )
-_TRACKING_ID_RE = re.compile(r"Tracking[\s-]?ID:\s*([A-Za-z0-9-]+)", re.I)
+_TRACKING_ID_RE = re.compile(
+    r"(?:Tracking[\s-]?ID|Numéro de suivi)\s*:\s*([A-Za-z0-9-]+)", re.I
+)
 _STATE_RE = re.compile(r"<script[^>]*page-state[^>]*>\s*(\{.*?\})\s*</script>", re.S)
 _EVENT_PART_RE = re.compile(
     r'<span class="tracking-event-(date|time|message|location)">([^<]*)</span>'
@@ -65,6 +74,57 @@ _POD_SIGNED_AT = "X-Amz-Date"
 _POD_VALID_FOR = "X-Amz-Expires"
 _POD_SRC_RE = re.compile(r'\b(data-src|src)="([^"]+)"')
 
+# "11:00 - 13:15" in the promise message, with the countdown to its end.
+_WINDOW_RE = re.compile(
+    r"(\d{1,2}:\d{2}(?:\s*[AaPp][Mm])?)\s*[-–]\s*(\d{1,2}:\d{2}(?:\s*[AaPp][Mm])?)"
+)
+_WINDOW_END_KEY = "timeUntilPredictedDeliveryWindowEnd"
+_WINDOW_TOLERANCE = timedelta(hours=1)
+# A courier the page does not name: the Colissimo id shape, amazon.fr only.
+_LA_POSTE_ID_RE = re.compile(r"\d[A-Z]\d{11}")
+_LA_POSTE_STOREFRONTS = {"amazon.fr"}
+# Delivery-card headers that name no courier, seen on a real page.
+_UNNAMED_CARRIER_HEADERS = {"informations sur la livraison"}
+LA_POSTE_GUESS = "LA_POSTE"
+
+# Amazon Business: the orders page is an empty shell and the list comes from a
+# separate call, whose parameters the shell carries.
+_BUSINESS_TOKEN_RE = re.compile(
+    r'<meta name="anti-csrftoken-a2z" content="([^"]+)"[^>]*id="ab-your-orders-anticsrf-token"'
+)
+_BUSINESS_STATE_RE = re.compile(
+    r"<script[^>]*yourOrdersStateData[^>]*>\s*(\{.*?\})\s*</script>", re.S
+)
+_BUSINESS_REQUEST_ID_RE = re.compile(
+    r'<input[^>]*name="originalRequestId" value="([^"]*)"'
+)
+_BUSINESS_ENTITY_RE = re.compile(
+    r'id="button_yoAllOrders-([^"]+)" class="selectedFilterButton"'
+)
+_BUSINESS_CARD_RE = re.compile(
+    r'<a href="([^"]*)" class="[^"]*\b(nonCancelledDeliveryCard|cancelledDeliveryCard)\b[^"]*">(.*?)</a>',
+    re.S,
+)
+_BUSINESS_STATUS_RE = re.compile(
+    r'<p class="primaryMessage">\s*<span[^>]*>([^<]*)</span>'
+)
+_BUSINESS_NOTE_RE = re.compile(
+    r'<p class="secondaryMessage">\s*<span[^>]*>([^<]*)</span>'
+)
+_BUSINESS_TITLE_RE = re.compile(r'<span class="a-truncate-full">([^<]*)</span>')
+_BUSINESS_COUNT_RE = re.compile(r'data-noofdeliverycardsrendered="(\d+)"')
+_BUSINESS_EXCEPTION_RE = re.compile(r'data-isexception="true"')
+BUSINESS_HISTORY_PATH = "/ab/your-orders/deliveryHistory"
+# The list as the page itself asks for it: last three months, newest first.
+_BUSINESS_FILTERS = {
+    "orderCondition": {"displayText": "Orders", "id": "yoOrdersTabination"},
+    "time": {"displayText": "past 3 months", "id": "yoPast3months"},
+    "sortBy": {"displayText": "Order Date", "id": "yoOrderDate"},
+    "users": {"displayText": "Ordered by you", "id": "yoOrderedByYou"},
+    "paymentType": {"displayText": "Paid by you", "id": "yoPaidByYou"},
+    "legalEntities": {"displayText": "All organizations", "id": "yoAllOrganizations"},
+}
+
 # Third-party map key the page embeds; it is not parcel data.
 _STATE_DROP = {"hereMapsApiKey"}
 
@@ -84,6 +144,8 @@ class OrderTile:
     placed_on: date | None
     delivered_on: date | None
     position: int = 0
+    # False for a line whose link leads to no tracking (a Business order page).
+    follow: bool = True
 
     @property
     def shipment_key(self) -> str:
@@ -172,7 +234,7 @@ def parse_order_tiles(page: str, today: date) -> list[OrderTile]:
         # "<title>, Order placed <date>, <status>[, <note>]".
         placed = _PLACED_RE.search(label)
         placed_on = _day_month(placed.group(1), today) if placed else None
-        title = label.split(", Order placed")[0]
+        title = _TITLE_END_RE.split(label, maxsplit=1)[0]
         if placed:
             status_text, _, note = (placed.group("tail") or "").partition(", ")
         else:
@@ -193,7 +255,7 @@ def parse_order_tiles(page: str, today: date) -> list[OrderTile]:
                 _day_month(status_text, placed_on, forward=True)
                 if placed_on
                 else _day_month(status_text, today)
-            )
+            ) or _relative_day(status_text, today)
         tiles.append(
             OrderTile(
                 order_id=order_id,
@@ -207,6 +269,122 @@ def parse_order_tiles(page: str, today: date) -> list[OrderTile]:
                 placed_on=placed_on,
                 delivered_on=delivered_on,
                 position=position,
+            )
+        )
+    return tiles
+
+
+@dataclass(frozen=True)
+class BusinessRequest:
+    """What the Business order-list call needs, read off the orders shell."""
+
+    token: str
+    form: dict[str, str]
+
+
+def parse_business_shell(page: str) -> BusinessRequest | None:
+    """Return the Business order-list call for an orders shell, else ``None``."""
+    token = _BUSINESS_TOKEN_RE.search(page)
+    state_match = _BUSINESS_STATE_RE.search(page)
+    if not token or not state_match:
+        return None
+    try:
+        state = json.loads(html.unescape(state_match.group(1)))
+    except ValueError:
+        return None
+    ids = {key: state.get(key) for key in ("marketplaceId", "businessId", "sessionId")}
+    if not all(isinstance(value, str) and value for value in ids.values()):
+        return None
+    # ``searchKeyword`` must be null: an empty string silently returns no order.
+    body: dict[str, Any] = {
+        **ids,
+        "pageNumber": 0,
+        "searchKeyword": None,
+        "isTesting": False,
+        "isDefaultFilterSelected": True,
+        "filters": _BUSINESS_FILTERS,
+    }
+    if request_id := _BUSINESS_REQUEST_ID_RE.search(page):
+        body["originalRequestId"] = request_id.group(1)
+    if entity := _BUSINESS_ENTITY_RE.search(page):
+        body["legalEntities"] = [entity.group(1)]
+    return BusinessRequest(
+        token=html.unescape(token.group(1)),
+        form={
+            "deliveryHistoryRequestString": json.dumps(body),
+            "refMarker": "ab_ppx_yo_mob_pagination_0",
+        },
+    )
+
+
+def business_history_failed(fragment: str) -> bool:
+    """Whether the Business order list reports a server-side error."""
+    return bool(_BUSINESS_EXCEPTION_RE.search(fragment))
+
+
+def business_card_count(fragment: str) -> int | None:
+    """How many cards the Business order list says it rendered."""
+    match = _BUSINESS_COUNT_RE.search(fragment)
+    return int(match.group(1)) if match else None
+
+
+def _text(raw: str) -> str:
+    return " ".join(html.unescape(raw).split())
+
+
+def parse_business_cards(fragment: str, today: date) -> list[OrderTile]:
+    """Return the order lines of a Business order list, in page order.
+
+    A card carries no order date and no package id; an in-flight card links
+    straight to its tracking page, a delivered one to its order page.
+    """
+    tiles: list[OrderTile] = []
+    for position, match in enumerate(_BUSINESS_CARD_RE.finditer(fragment)):
+        href = html.unescape(match.group(1))
+        body = match.group(3)
+        status = _BUSINESS_STATUS_RE.search(body)
+        status_text = _text(status.group(1)) if status else ""
+        kind, confirmed = classify_order_text(status_text)
+        if match.group(2) == "cancelledDeliveryCard" or kind == SKIP:
+            continue
+        query = {k.lower(): v for k, v in parse_qs(urlparse(href).query).items()}
+        order_id = (query.get("orderid") or query.get("oid") or [""])[0]
+        if not order_id:
+            continue
+        if kind is not None and not confirmed:
+            warn_once(
+                f"plausible-line={_mask(status_text)}",
+                f'The Amazon order-line text "{_mask(status_text)}" was read as'
+                f" {kind} from wording we have not seen confirmed yet; please"
+                " confirm it is right.",
+            )
+        title_match = _BUSINESS_TITLE_RE.search(body)
+        title = _text(title_match.group(1)) if title_match else ""
+        note = _BUSINESS_NOTE_RE.search(body)
+        # A delivered card names no item; its title keeps it apart from the
+        # order's other lines without depending on its place in the list.
+        line_item = (query.get("itemid") or [""])[0] or (
+            "t" + hashlib.sha1(title.encode()).hexdigest()[:10]
+        )
+        delivered_on = None
+        if kind is ParcelStatus.DELIVERED:
+            delivered_on = _day_month(status_text, today) or _relative_day(
+                status_text, today
+            )
+        tiles.append(
+            OrderTile(
+                order_id=order_id,
+                line_item_id=line_item,
+                shipment_id=(query.get("shipmentid") or [""])[0],
+                package_id="1",
+                pop_path=href,
+                title=title,
+                status_text=status_text,
+                status_note=_text(note.group(1)) if note else None,
+                placed_on=None,
+                delivered_on=delivered_on,
+                position=position,
+                follow=is_track_page_path(href),
             )
         )
     return tiles
@@ -232,6 +410,11 @@ def _split_unanchored_label(label: str) -> tuple[str, str, str]:
                 ", ".join(segments[index + 1 :]),
             )
     return label, "", ""
+
+
+def is_track_page_path(path: str) -> bool:
+    """Whether an order-line link already points at the tracking page itself."""
+    return bool(_TRACK_PAGE_PATH_RE.search(urlparse(path).path))
 
 
 def parse_track_link(page: str) -> str | None:
@@ -287,6 +470,28 @@ _YESTERDAY_WORDS = {
     "igår",
     "wczoraj",
 }
+
+
+# Seen on amazon.fr delivered lines: "Livré jeudi", within the past week.
+_WEEKDAYS = {
+    name: number
+    for number, name in enumerate(
+        ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+    )
+}
+_WORD_RE = re.compile(r"[^\W\d_]+(?:'[^\W\d_]+)?")
+
+
+def _relative_day(text: str, today: date) -> date | None:
+    """Resolve "today", "yesterday" or a weekday name in an order-line text."""
+    for word in _WORD_RE.findall(text.lower().replace("’", "'")):
+        if word in _TODAY_WORDS:
+            return today
+        if word in _YESTERDAY_WORDS:
+            return today - timedelta(days=1)
+        if word in _WEEKDAYS:
+            return today - timedelta(days=(today.weekday() - _WEEKDAYS[word]) % 7 or 7)
+    return None
 
 
 def _parse_time(text: str) -> time | None:
@@ -414,11 +619,66 @@ def parse_track_page(page: str, today: date) -> TrackInfo:
     )
 
 
+def delivery_window(state: dict[str, Any], read_at: datetime) -> tuple[str, str] | None:
+    """Return the predicted delivery window from a tracking page's state.
+
+    The message names only the times, in the account's language; the countdown
+    to the window's end says which day they fall on and confirms the reading.
+    """
+    countdown = state.get(_WINDOW_END_KEY)
+    promise = state.get("promise")
+    message = promise.get("promiseMessage") if isinstance(promise, dict) else None
+    zone = _zone(
+        state.get("timezone") if isinstance(state.get("timezone"), str) else None
+    )
+    if not isinstance(countdown, int) or isinstance(countdown, bool) or zone is None:
+        return None
+    match = _WINDOW_RE.search(message) if isinstance(message, str) else None
+    start = _parse_time(match.group(1)) if match else None
+    end = _parse_time(match.group(2)) if match else None
+    expected_end = (read_at + timedelta(milliseconds=countdown)).astimezone(zone)
+    if start is not None and end is not None:
+        day = expected_end.date()
+        window_from = datetime.combine(day, start, tzinfo=zone)
+        window_to = datetime.combine(day, end, tzinfo=zone)
+        if (
+            window_from < window_to
+            and abs(window_to - expected_end) <= _WINDOW_TOLERANCE
+        ):
+            return window_from.isoformat(), window_to.isoformat()
+    warn_once(
+        f"delivery-window={_mask(message or '')}",
+        f'Amazon announced the delivery window "{_mask(message or "")}" in a'
+        " shape we could not read, so it is left out; please share it.",
+    )
+    return None
+
+
+def _guess_carrier(domain: str, track: TrackInfo) -> str | None:
+    """Name the courier from the tracking id when the page does not."""
+    if domain not in _LA_POSTE_STOREFRONTS or not track.tracking_id:
+        return None
+    header = (track.carrier_header or "").lower()
+    if header and header not in _UNNAMED_CARRIER_HEADERS:
+        return None
+    if not _LA_POSTE_ID_RE.fullmatch(track.tracking_id):
+        return None
+    warn_once(
+        "carrier-guess=la-poste",
+        "An amazon.fr tracking page named no courier, so La Poste (Colissimo)"
+        " was guessed from the shape of the tracking id; please confirm the"
+        " courier your parcel came with.",
+    )
+    return LA_POSTE_GUESS
+
+
 def build_record(
     domain: str,
     tiles: list[OrderTile],
     track_path: str | None,
     track: TrackInfo | None,
+    *,
+    read_at: datetime | None = None,
 ) -> dict[str, Any]:
     """Assemble the raw shipment record the parcel mapping works on.
 
@@ -428,6 +688,11 @@ def build_record(
     lead = tiles[0]
     tracking_id = track.tracking_id if track else None
     progress = (track.state.get("progressTracker") if track else None) or {}
+    carrier_code = track.carrier_code if track else None
+    guessed = None
+    if track and carrier_code is None:
+        guessed = _guess_carrier(domain, track)
+    window = delivery_window(track.state, read_at) if track and read_at else None
     return {
         "domain": domain,
         "order_id": lead.order_id,
@@ -435,7 +700,8 @@ def build_record(
         "package_id": lead.package_id,
         "barcode_source": "tracking_id" if tracking_id else "shipment_key",
         "tracking_id": tracking_id,
-        "carrier_code": track.carrier_code if track else None,
+        "carrier_code": carrier_code or guessed,
+        "carrier_guessed": guessed is not None,
         "delivery_photo_url": track.delivery_photo_url if track else None,
         "delivery_photo_expires": track.delivery_photo_expires if track else None,
         "carrier_header": track.carrier_header if track else None,
@@ -443,6 +709,7 @@ def build_record(
         "order_status_note": lead.status_note,
         "delivered_on": lead.delivered_on.isoformat() if lead.delivered_on else None,
         "milestone": progress.get("lastReachedMilestone") if progress else None,
+        "delivery_window": list(window) if window else None,
         "events": track.events if track else [],
         "items": [tile.title for tile in tiles],
         "pop_path": lead.pop_path,

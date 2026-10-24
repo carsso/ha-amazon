@@ -34,9 +34,12 @@ NEW_ISSUE_URL = (
     "?template=unrecognised_status.yml"
 )
 
-# Progress-tracker milestones. Only ``DELIVERED`` has been observed; the
-# other milestone names are resolved through the timeline instead.
+# Progress-tracker milestones, only the ones a real page has shown; any other
+# name is resolved through the timeline instead.
 _MILESTONE_MAP: dict[str, ParcelStatus] = {
+    "ORDERED": ParcelStatus.REGISTERED,
+    "SHIPPED": ParcelStatus.IN_TRANSIT,
+    "OUT_FOR_DELIVERY": ParcelStatus.OUT_FOR_DELIVERY,
     "DELIVERED": ParcelStatus.DELIVERED,
 }
 
@@ -44,6 +47,9 @@ _MILESTONE_MAP: dict[str, ParcelStatus] = {
 # is reported once so the map can grow. ``PICKED_UP`` is the recipient
 # collecting the parcel, e.g. from a parcel locker.
 _SHORT_STATUS_MAP: dict[str, ParcelStatus] = {
+    "ORDER_PLACED": ParcelStatus.REGISTERED,
+    "IN_TRANSIT": ParcelStatus.IN_TRANSIT,
+    "OUT_FOR_DELIVERY": ParcelStatus.OUT_FOR_DELIVERY,
     "DELIVERED": ParcelStatus.DELIVERED,
     "PICKED_UP": ParcelStatus.DELIVERED,
 }
@@ -75,6 +81,11 @@ _EVENT_MAP: dict[str, ParcelStatus] = {
     "im briefkasten hinterlegt": ParcelStatus.DELIVERED,
     "lieferung in der nähe von haustür oder veranda abgelegt": ParcelStatus.DELIVERED,
     "die sendung wurde vom empfänger abgeholt": ParcelStatus.DELIVERED,
+    # fr, seen on an amazon.fr tracking page
+    "le colis a quitté les locaux de l'expéditeur": ParcelStatus.IN_TRANSIT,
+    "le colis est arrivé à l'agence de livraison finale": ParcelStatus.IN_TRANSIT,
+    "en cours de livraison": ParcelStatus.OUT_FOR_DELIVERY,
+    "livré": ParcelStatus.DELIVERED,
 }
 
 _CARRIER_NAMES = {
@@ -82,6 +93,8 @@ _CARRIER_NAMES = {
     "DHL_CONNECT": "DHL",
     "Amazon": "Amazon",
     "COLIS_PRIVE_BELU": "Colis Privé",
+    # Not an Amazon code: guessed from the tracking id (pages._guess_carrier).
+    "LA_POSTE": "La Poste",
 }
 
 # Status texts we have already warned about, so each unmapped one is logged
@@ -119,11 +132,11 @@ def _event_status(message: str | None) -> ParcelStatus | None:
     if not message:
         return None
     # Amazon ends some timeline messages with a full stop and some without.
-    text = message.strip().lower().rstrip(".!")
+    text = message.strip().lower().rstrip(".!").replace("’", "'")
     mapped = _EVENT_MAP.get(text)
     if mapped is not None:
         return mapped
-    if text.startswith(("delivered", "bezorgd", "zugestellt")):
+    if text.startswith(("delivered", "bezorgd", "zugestellt", "livré")):
         return ParcelStatus.DELIVERED
     return None
 
@@ -348,10 +361,13 @@ def normalize_parcel(raw: dict, *, include_history: bool = False) -> dict:
     The **keys of the returned dict are the contract**: every carrier in the
     suite returns exactly these, in this order. A key is ``None`` when Amazon
     does not expose it — never omitted. Amazon's pages carry no sender,
-    receiver, weight, dimensions, pickup point or reliable delivery window.
+    receiver, weight, dimensions or pickup point; the delivery window only
+    when the tracking page predicts one.
     """
     status = resolve_status(raw)
     delivered = status is ParcelStatus.DELIVERED
+    window = raw.get("delivery_window")
+    planned_from, planned_to = window if window and not delivered else (None, None)
 
     return {
         "carrier": _carrier(raw),
@@ -362,8 +378,8 @@ def normalize_parcel(raw: dict, *, include_history: bool = False) -> dict:
         "raw_status": _raw_status(raw),
         "delivered": delivered,
         "delivered_at": _delivered_at(raw) if delivered else None,
-        "planned_from": None,
-        "planned_to": None,
+        "planned_from": planned_from,
+        "planned_to": planned_to,
         "pickup": False,
         "pickup_point": None,
         "url": tracking_url(raw),

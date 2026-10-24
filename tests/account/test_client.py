@@ -10,14 +10,25 @@ from custom_components.amazon_orders.account.errors import (
     AmazonApiError,
     AmazonAuthError,
 )
+from custom_components.amazon_orders.account.parcels import normalize_parcel
 
 from ..fakes import FakeResponse, FakeSession
 from ..payloads import (
     ACTIVE_CODE,
+    BUSINESS_TOKEN,
     COUNTRY,
+    DELIVERED_CODE,
     DELIVERED_EVENTS,
+    FEEDBACK_PATH,
+    ORDER_ID,
+    business_card,
+    business_history,
+    business_order_path,
+    business_shell,
+    business_tracker_path,
     orders_page,
     pop_page,
+    progress_tracker_path,
     tile,
     track_page,
     track_path,
@@ -228,6 +239,145 @@ async def test_delivered_shipment_without_a_tracking_page_is_final_too():
     await client.async_get_parcels()
 
     assert sum("pop?" in url for url in _gets(session)) == 1
+
+
+async def test_a_line_linking_straight_to_its_tracking_page_costs_one_read():
+    path = progress_tracker_path("SHIPfr00001")
+    session = _session(
+        tile(
+            "SHIPfr00001",
+            "Arrive aujourd'hui dans la tranche horaire suivante : 11:00 - 13:15",
+            None,
+            placed_anchor="Commande effectuée le",
+            placed=_placed(1),
+            href=path,
+        )
+    )
+    session.add(
+        "GET",
+        "progress-tracker/package?",
+        FakeResponse(
+            200,
+            track_page(
+                tracking_id=ACTIVE_CODE,
+                carrier_header="Livraison par Amazon",
+                tracking_label="Numéro de suivi :",
+                milestone="OUT_FOR_DELIVERY",
+                short_status="OUT_FOR_DELIVERY",
+                timezone="Europe/Paris",
+                events=[
+                    (
+                        "samedi 24 octobre",
+                        "10:42",
+                        "En cours de livraison",
+                        "Ville, FR",
+                    ),
+                    (
+                        "samedi 24 octobre",
+                        "5:29",
+                        "Le colis est arrivé à l'agence de livraison finale\n",
+                        "Ville, FR",
+                    ),
+                    (
+                        "vendredi 23 octobre",
+                        "",
+                        "Le colis a quitté les locaux de l'expéditeur",
+                        "",
+                    ),
+                ],
+            ),
+        ),
+    )
+
+    (record,) = await _client(session).async_get_parcels()
+
+    assert _gets(session)[1:] == [f"https://www.{COUNTRY}{path}"]
+    assert record["track_path"] == path
+    parcel = normalize_parcel(record, include_history=True)
+    assert parcel["barcode"] == ACTIVE_CODE
+    assert parcel["carrier"] == "Amazon"
+    assert parcel["status"] == "out_for_delivery"
+    assert [entry["status"] for entry in parcel["history"]] == [
+        "in_transit",
+        "in_transit",
+        "out_for_delivery",
+    ]
+
+
+async def test_a_delivered_line_skips_the_feedback_survey_for_ship_track():
+    path = track_path("SHIPfr00002")
+    session = _session(
+        tile(
+            "SHIPfr00002",
+            f"Livré : {_day(1)}",
+            None,
+            placed_anchor="Commande effectuée le",
+            placed=_placed(3),
+        )
+    )
+    session.add(
+        "GET",
+        "pop?",
+        FakeResponse(
+            200,
+            f'<html><body><a href="{FEEDBACK_PATH}">Avis</a>'
+            f'<a href="{path}">Suivre</a></body></html>',
+        ),
+    )
+    session.add(
+        "GET",
+        "ship-track?",
+        FakeResponse(
+            200,
+            track_page(
+                tracking_id=DELIVERED_CODE,
+                carrier_header="Livraison par Amazon",
+                short_status="DELIVERED",
+                events=[("samedi 24 octobre", "12:20", "Livré", "Ville, FR")],
+            ),
+        ),
+    )
+
+    (record,) = await _client(session).async_get_parcels()
+
+    gets = _gets(session)
+    assert len(gets) == 3
+    assert "ship-track" in gets[2]
+    assert not any("delivery-feedback" in url for url in gets)
+    assert normalize_parcel(record)["status"] == "delivered"
+
+
+async def test_a_not_yet_dispatched_tracking_page_is_not_reported_empty(caplog):
+    path = progress_tracker_path("SHIPfr00007")
+    session = _session(
+        tile(
+            "SHIPfr00007",
+            "Livraison prévue mardi",
+            None,
+            placed_anchor="Commande effectuée le",
+            placed=_placed(1),
+            href=path,
+        )
+    )
+    session.add(
+        "GET",
+        "progress-tracker/package?",
+        FakeResponse(
+            200,
+            track_page(
+                tracking_id=None,
+                carrier=None,
+                milestone="ORDERED",
+                short_status="ORDER_PLACED",
+                timezone="Europe/Paris",
+            ),
+        ),
+    )
+
+    (record,) = await _client(session).async_get_parcels()
+
+    assert normalize_parcel(record)["status"] == "registered"
+    assert "held no tracking id" not in caplog.text
 
 
 async def test_order_lines_of_one_shipment_cost_one_read():
@@ -474,3 +624,216 @@ async def test_a_failing_orders_page_does_not_claim_the_layout_changed(caplog):
     with pytest.raises(AmazonApiError):
         await _client(session).async_get_parcels()
     assert "No order lines" not in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# Amazon Business
+# ---------------------------------------------------------------------------
+
+
+def _business_session(*fragments) -> FakeSession:
+    session = _session()
+    session.add("GET", "/your-orders/orders", FakeResponse(200, business_shell()))
+    session.add("POST", "/ab/your-orders/deliveryHistory", *fragments)
+    return session
+
+
+def _business_track(session: FakeSession, shipment: str, **page) -> None:
+    session.add(
+        "GET",
+        f"shipmentId={shipment}&vt=YOUR_ORDERS",
+        FakeResponse(200, track_page(**page)),
+    )
+
+
+def _posts(session: FakeSession) -> list[tuple[str, dict]]:
+    return [
+        (url, kwargs)
+        for method, url, kwargs in session.calls
+        if method == "POST" and "deliveryHistory" in url
+    ]
+
+
+async def test_a_business_account_reads_its_order_list_then_the_tracking_page():
+    session = _business_session(
+        FakeResponse(
+            200,
+            business_history(
+                business_card(
+                    business_tracker_path("SHIPab00001"), "Livraison prévue lundi"
+                ),
+                business_card("/dp/B000TEST00/ref=x", "Annulée", cancelled=True),
+            ),
+        )
+    )
+    _business_track(
+        session,
+        "SHIPab00001",
+        tracking_id="6A00000000001",
+        carrier_header="Informations sur la livraison",
+        milestone="SHIPPED",
+        short_status="IN_TRANSIT",
+    )
+
+    (record,) = await AmazonClient("amazon.fr", "refresh", session).async_get_parcels()
+
+    ((url, kwargs),) = _posts(session)
+    assert url == "https://www.amazon.fr/ab/your-orders/deliveryHistory"
+    assert kwargs["headers"]["anti-csrftoken-a2z"] == BUSINESS_TOKEN
+    assert kwargs["headers"]["X-Requested-With"] == "XMLHttpRequest"
+    assert "iPhone" in kwargs["headers"]["User-Agent"]
+    assert '"searchKeyword": null' in kwargs["data"]["deliveryHistoryRequestString"]
+    # The orders page is not read a second time through the legacy path.
+    assert not any("order-history" in url for url in _gets(session))
+    parcel = normalize_parcel(record)
+    assert parcel["status"] == "in_transit"
+    assert parcel["barcode"] == "6A00000000001"
+    assert parcel["carrier"] == "La Poste"
+
+
+async def test_a_delivered_business_card_stays_the_same_parcel():
+    session = _business_session(
+        FakeResponse(
+            200,
+            business_history(
+                business_card(
+                    business_tracker_path("SHIPab00001"), "Livraison prévue lundi"
+                )
+            ),
+        ),
+        FakeResponse(
+            200,
+            business_history(business_card(business_order_path(), "Livré&nbsp;: hier")),
+        ),
+    )
+    _business_track(
+        session, "SHIPab00001", milestone="SHIPPED", short_status="IN_TRANSIT"
+    )
+    client = AmazonClient("amazon.fr", "refresh", session)
+
+    (first,) = await client.async_get_parcels()
+    _business_track(
+        session, "SHIPab00001", milestone="DELIVERED", short_status="DELIVERED"
+    )
+    (second,) = await client.async_get_parcels()
+
+    assert normalize_parcel(second)["barcode"] == normalize_parcel(first)["barcode"]
+    assert normalize_parcel(second)["status"] == "delivered"
+    assert second["track_path"] == business_tracker_path("SHIPab00001")
+
+
+async def test_a_business_card_already_delivered_costs_no_extra_read():
+    session = _business_session(
+        FakeResponse(
+            200, business_history(business_card(business_order_path(), "Livré jeudi"))
+        )
+    )
+
+    (record,) = await AmazonClient("amazon.fr", "refresh", session).async_get_parcels()
+
+    assert not any("/gp/aw/ya" in url for url in _gets(session))
+    assert normalize_parcel(record)["status"] == "delivered"
+    assert record["delivered_on"] is not None
+
+
+async def test_a_stale_business_token_is_renewed_once():
+    session = _business_session(
+        FakeResponse(403),
+        FakeResponse(
+            200,
+            business_history(business_card(business_order_path(), "Livré jeudi")),
+        ),
+    )
+
+    records = await AmazonClient("amazon.fr", "refresh", session).async_get_parcels()
+
+    assert len(records) == 1
+    assert len(_posts(session)) == 2
+    assert sum(url.endswith("/your-orders/orders") for url in _gets(session)) == 2
+
+
+async def test_a_business_token_refused_twice_is_an_auth_error():
+    session = _business_session(FakeResponse(403))
+    with pytest.raises(AmazonAuthError):
+        await AmazonClient("amazon.fr", "refresh", session).async_get_parcels()
+    assert len(_posts(session)) == 2
+
+
+async def test_an_other_business_auth_failure_is_not_retried():
+    session = _business_session(FakeResponse(401))
+    with pytest.raises(AmazonAuthError):
+        await AmazonClient("amazon.fr", "refresh", session).async_get_parcels()
+    assert len(_posts(session)) == 1
+
+
+async def test_a_business_list_error_fails_the_poll():
+    session = _business_session(FakeResponse(200, business_history(exception=True)))
+    with pytest.raises(AmazonApiError):
+        await AmazonClient("amazon.fr", "refresh", session).async_get_parcels()
+
+
+async def test_a_renewed_shell_that_is_no_longer_business_fails_the_poll():
+    session = _business_session(FakeResponse(403))
+    session.add(
+        "GET",
+        "/your-orders/orders",
+        FakeResponse(200, business_shell()),
+        FakeResponse(200, orders_page()),
+    )
+    with pytest.raises(AmazonApiError):
+        await AmazonClient("amazon.fr", "refresh", session).async_get_parcels()
+
+
+async def test_an_empty_business_list_warns_once(caplog):
+    session = _business_session(FakeResponse(200, business_history()))
+    client = AmazonClient("amazon.fr", "refresh", session)
+    assert await client.async_get_parcels() == []
+    assert await client.async_get_parcels() == []
+    assert caplog.text.count("Amazon Business order list came back empty") == 1
+
+
+async def test_a_business_list_of_only_cancelled_cards_does_not_warn(caplog):
+    session = _business_session(
+        FakeResponse(
+            200,
+            business_history(
+                business_card("/dp/B000TEST00/ref=x", "Annulée", cancelled=True)
+            ),
+        )
+    )
+    assert await AmazonClient("amazon.fr", "refresh", session).async_get_parcels() == []
+    assert "came back empty" not in caplog.text
+
+
+async def test_business_lines_survive_a_restart_and_a_silent_empty_list():
+    session = _business_session(
+        FakeResponse(200, business_history()),
+        FakeResponse(
+            200,
+            business_history(business_card(business_order_path(), "Livré&nbsp;: hier")),
+        ),
+    )
+    _business_track(
+        session, "SHIPab00001", milestone="DELIVERED", short_status="DELIVERED"
+    )
+    before = AmazonClient("amazon.fr", "refresh", session)
+    before.restore_business_lines(
+        [
+            [
+                ORDER_ID,
+                "Example item 1",
+                "SHIPab00001",
+                business_tracker_path("SHIPab00001"),
+            ]
+        ]
+    )
+    stored = before.business_lines
+    after = AmazonClient("amazon.fr", "refresh", session)
+    after.restore_business_lines([*stored, ["not", "a", "line"], "junk"])
+
+    assert await after.async_get_parcels() == []
+    assert after.business_lines == stored
+    (record,) = await after.async_get_parcels()
+
+    assert record["shipment_id"] == "SHIPab00001"
+    assert record["tracking_id"] == ACTIVE_CODE

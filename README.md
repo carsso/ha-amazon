@@ -41,6 +41,7 @@ Built on the [ha-parcel-integrations](https://ha-parcel-integrations.github.io/)
 
 - Auto-imports every shipment of your recent orders — no per-parcel setup
 - One entry per Amazon country and account, each with its own sign-in, so two people in a household can each add their own account on the same Amazon
+- Amazon Business accounts too (seen on amazon.fr): the orders placed by you in the last three months
 - Per-parcel sensor with the canonical status (`registered` / `in_transit` / `out_for_delivery` / `delivered` / …), Amazon's own status text and a link to the tracking page
 - The delivery carrier Amazon names (for example Dragonfly or DHL) on every parcel
 - Hands parcels over to the matching carrier integration when you have it set up, for a delivery window, pickup point and full history (see [Hand-off to carrier integrations](#hand-off-to-carrier-integrations))
@@ -115,6 +116,12 @@ family and you have it set up, this integration hands the parcel over to it and
 stops listing it, so you do not see it twice. Today that covers
 **DHL** (the `dhl` integration), **Colis Privé** and **Dragonfly**.
 
+On amazon.fr, a tracking page sometimes names no courier at all. When its
+tracking number has the Colissimo shape (a digit, a letter, then 11 digits), the
+parcel is shown as La Poste's, but it stays here: a guess is never handed over.
+The log says once that the courier was guessed, so you can tell us if it was
+right.
+
 - It is on by default and can be turned off under **Configure**; the last step
   of adding the integration asks about it too. Turning it off lists those parcels
   here again; they also stay in the carrier integrations.
@@ -149,8 +156,10 @@ what your tracked parcels are actually doing:
 - A small, fixed per-hub offset is added on top, so not every Amazon
   hub out there polls at exactly the same second.
 
-Amazon's pages give no delivery window, so a parcel that is out for delivery is
-always treated as "hot" and polled every 15 minutes until it is delivered.
+When the tracking page predicts a delivery window (amazon.fr shows one for a
+parcel out for delivery, for example "11:00 - 13:15"), it fills `planned_from` /
+`planned_to` and the delivery calendar. Without one, a parcel that is out for
+delivery is treated as "hot" and polled every 15 minutes until it is delivered.
 
 ## Removal
 
@@ -182,11 +191,11 @@ The `status` field is the carrier-agnostic enum shared by the whole integration 
 
 Amazon also reports other situations (a pickup point, a return, a delivery problem), but none of those have been seen on a real parcel yet, so they are not mapped. If your parcel shows `unknown`, the warning in the log names what Amazon said.
 
-Order-line wording is recognised in English, Dutch, French, German, Spanish, Italian, Swedish and Polish. The English wording is confirmed against other tools' sources, and the main Dutch wording against real orders on amazon.com.be; the rest are best guesses, so the first time one is used the log asks you to confirm it. Cancelled, returned and refunded lines are not shown.
+Order-line wording is recognised in English, Dutch, French, German, Spanish, Italian, Swedish and Polish. The English wording is confirmed against other tools' sources, the main Dutch wording against real orders on amazon.com.be and the main French wording against real orders on amazon.fr; the rest are best guesses, so the first time one is used the log asks you to confirm it. Cancelled, returned and refunded lines are not shown.
 
 Amazon's own human-readable text is always available as `raw_status`.
 
-Amazon writes the tracking timeline in the language of your account. English and Dutch timeline wording is mapped; another language's timeline still gives the right parcel status (that comes from a language-independent code), but the individual history entries come back without one, and the log names each unmapped line so it can be added.
+Amazon writes the tracking timeline in the language of your account. English, Dutch, German and French timeline wording is mapped; another language's timeline still gives the right parcel status (that comes from a language-independent code), but the individual history entries come back without one, and the log names each unmapped line so it can be added.
 
 ## Delivery photo
 

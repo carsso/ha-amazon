@@ -30,6 +30,13 @@ _CONFIRMED_TEXT: tuple[tuple[str, Kind], ...] = (
     ("bezorgd", ParcelStatus.DELIVERED),
     ("wordt vandaag bezorgd", ParcelStatus.OUT_FOR_DELIVERY),
     ("wordt morgen bezorgd", ParcelStatus.IN_TRANSIT),
+    # fr, seen on amazon.fr order lines
+    ("livré", ParcelStatus.DELIVERED),
+    ("arrive aujourd'hui", ParcelStatus.OUT_FOR_DELIVERY),
+    ("arrive", ParcelStatus.IN_TRANSIT),
+    ("annulé", SKIP),
+    ("livraison prévue", ParcelStatus.IN_TRANSIT),
+    ("remboursé", SKIP),
 )
 
 _PLAUSIBLE_TEXT: tuple[tuple[str, Kind], ...] = (
@@ -54,16 +61,12 @@ _PLAUSIBLE_TEXT: tuple[tuple[str, Kind], ...] = (
     ("retour", SKIP),
     ("terugbetaald", SKIP),
     # fr
-    ("livré", ParcelStatus.DELIVERED),
     ("arrivée prévue", ParcelStatus.IN_TRANSIT),
-    ("livraison prévue", ParcelStatus.IN_TRANSIT),
     ("pas encore expédié", ParcelStatus.REGISTERED),
     ("expédié", ParcelStatus.IN_TRANSIT),
     ("en cours de livraison", ParcelStatus.OUT_FOR_DELIVERY),
     ("livraison aujourd'hui", ParcelStatus.OUT_FOR_DELIVERY),
-    ("annulé", SKIP),
     ("retourné", SKIP),
-    ("remboursé", SKIP),
     # de
     ("zugestellt", ParcelStatus.DELIVERED),
     ("heute zugestellt", ParcelStatus.DELIVERED),
@@ -130,7 +133,7 @@ STATUS_PREFIXES: tuple[str, ...] = tuple(prefix for prefix, _, _ in _TEXT)
 
 def classify_order_text(text: str | None) -> tuple[Kind | None, bool]:
     """Return what an order-line status means and whether that is confirmed."""
-    lowered = (text or "").strip().lower()
+    lowered = (text or "").strip().lower().replace("’", "'")
     for prefix, kind, confirmed in _TEXT:
         if lowered.startswith(prefix):
             return kind, confirmed

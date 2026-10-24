@@ -26,6 +26,14 @@ from custom_components.amazon_orders.const import ParcelStatus
         ("Bezorgd op 8 oktober", ParcelStatus.DELIVERED),
         ("Wordt vandaag bezorgd", ParcelStatus.OUT_FOR_DELIVERY),
         ("Wordt morgen bezorgd", ParcelStatus.IN_TRANSIT),
+        ("Livré : 5 octobre", ParcelStatus.DELIVERED),
+        ("Livré aujourd'hui", ParcelStatus.DELIVERED),
+        (
+            "Arrive aujourd'hui dans la tranche horaire suivante : 11:00 - 13:15",
+            ParcelStatus.OUT_FOR_DELIVERY,
+        ),
+        ("Arrive demain", ParcelStatus.IN_TRANSIT),
+        ("Annulé(s)", SKIP),
     ],
 )
 def test_confirmed_wording(text, kind):
@@ -52,7 +60,6 @@ def test_unknown_and_empty_text_classify_as_nothing():
         ("Wordt donderdag bezorgd", ParcelStatus.IN_TRANSIT),
         ("Geannuleerd", SKIP),
         ("Pas encore expédié", ParcelStatus.REGISTERED),
-        ("Annulé", SKIP),
         ("Noch nicht versandt", ParcelStatus.REGISTERED),
         ("Storniert", SKIP),
         ("Llega hoy", ParcelStatus.OUT_FOR_DELIVERY),
@@ -111,3 +118,10 @@ def test_month_names(name, number):
 
 def test_every_month_number_is_reachable():
     assert set(MONTHS.values()) == set(range(1, 13))
+
+
+def test_a_curly_apostrophe_reads_like_a_straight_one():
+    assert classify_order_text("Arrive aujourd’hui entre 11:00 et 13:15") == (
+        ParcelStatus.OUT_FOR_DELIVERY,
+        True,
+    )

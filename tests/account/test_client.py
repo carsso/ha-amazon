@@ -479,8 +479,11 @@ async def test_a_poll_follows_at_most_the_capped_number_of_shipments(monkeypatch
 
     # The next cycles rotate to the shipments that have not been read yet,
     # then back to the stalest one; nothing is read twice in a row.
+    assert client.listing_complete is False
     second = await client.async_get_parcels()
+    assert client.listing_complete is False
     third = await client.async_get_parcels()
+    assert client.listing_complete is True
     assert [r["shipment_id"] for r in second] == shipments[:4]
     assert [r["shipment_id"] for r in third] == shipments
 

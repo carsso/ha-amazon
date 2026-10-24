@@ -82,6 +82,8 @@ class AmazonClient:
         self._last: dict[_ShipmentKey, tuple[dict[str, Any], datetime]] = {}
         # Day a shipment was first read as delivered without a delivery date.
         self._undated: dict[_ShipmentKey, date] = {}
+        # Whether the last poll had read every shipment it lists at least once.
+        self._listing_complete = True
         # Business: a delivered card drops its shipment and tracking link, so
         # the in-flight card's are kept to carry the parcel over.
         self._business_lines: dict[tuple[str, str], tuple[str, str]] = {}
@@ -330,6 +332,15 @@ class AmazonClient:
             return True
         return self._undated.setdefault(key, today) < today
 
+    @property
+    def listing_complete(self) -> bool:
+        """Whether every listed shipment has been read at least once.
+
+        After a restart the capped fan-out needs a few polls for that, and a
+        shipment it reaches late is not a new one.
+        """
+        return self._listing_complete
+
     async def async_get_parcels(self) -> list[dict[str, Any]]:
         """Return one raw record per shipment worth showing."""
         # The pause is between the loads of one poll, not before its first.
@@ -365,6 +376,7 @@ class AmazonClient:
                 self._final[key] = record
                 self._undated.pop(key, None)
 
+        self._listing_complete = all(key in self._last for key in work)
         records: list[dict[str, Any]] = []
         for key in groups:
             if key in self._final:

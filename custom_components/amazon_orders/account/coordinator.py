@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -49,6 +50,12 @@ BUSINESS_LINES_VERSION = 1
 def business_lines_store(hass: HomeAssistant, entry_id: str) -> Store[dict]:
     """Where an entry keeps its Business lines across restarts."""
     return Store(hass, BUSINESS_LINES_VERSION, f"{DOMAIN}.business_lines.{entry_id}")
+
+
+def _shipment(parcel: dict) -> tuple[Any, Any, Any]:
+    """Return the Amazon shipment a parcel is, whatever its barcode."""
+    raw = parcel["raw"]
+    return (raw.get("order_id"), raw.get("shipment_id"), raw.get("package_id"))
 
 
 def _stagger_minutes(entry_id: str) -> int:
@@ -170,6 +177,9 @@ class AmazonCoordinator(DataUpdateCoordinator[list[dict]]):
         self._known_delivery_times: dict[str, tuple[str | None, str | None]] | None = (
             None
         )
+        # Shipment -> stand-in barcode of the last poll, so a parcel whose
+        # stand-in turns into its tracking id is not announced a second time.
+        self._stand_ins: dict[tuple[Any, Any, Any], str] = {}
         # Cached device id, attached to every fired event so device-trigger
         # automations can filter to this account's device.
         self._cached_device_id: str | None = None
@@ -289,7 +299,14 @@ class AmazonCoordinator(DataUpdateCoordinator[list[dict]]):
         # Incoming = active + delivered, combined so the transition to
         # delivered is visible in one set.
         incoming = normalized_active + self.delivered
+        self._carry_known_state(incoming)
         self._fire_change_events(incoming)
+        self._stand_ins = {
+            _shipment(parcel): parcel["barcode"]
+            for parcel in incoming
+            if parcel.get("barcode")
+            and parcel["raw"].get("barcode_source") == "shipment_key"
+        }
         self._known_state = {
             parcel["barcode"]: parcel["status"]
             for parcel in incoming
@@ -307,6 +324,35 @@ class AmazonCoordinator(DataUpdateCoordinator[list[dict]]):
             now, self._current_tier_minutes, self.config_entry.entry_id
         )
         return normalized_active
+
+    def _carry_known_state(self, parcels: list[dict]) -> None:
+        """Treat a barcode as known when it is not really a new parcel.
+
+        A stand-in that became the tracking id keeps its last status. Until
+        the capped fan-out has read every shipment once (after a restart it
+        takes a few polls), a barcode turning up is one that existed before.
+        """
+        if self._known_state is None or self._known_delivery_times is None:
+            return
+        present = {parcel.get("barcode") for parcel in parcels}
+        complete = self._client.listing_complete
+        for parcel in parcels:
+            barcode = parcel.get("barcode")
+            if not barcode or barcode in self._known_state:
+                continue
+            old = self._stand_ins.get(_shipment(parcel))
+            if old is not None and old not in present and old in self._known_state:
+                self._known_state[barcode] = self._known_state[old]
+                if old in self._known_delivery_times:
+                    self._known_delivery_times[barcode] = self._known_delivery_times[
+                        old
+                    ]
+            elif not complete:
+                self._known_state[barcode] = parcel["status"]
+                self._known_delivery_times[barcode] = (
+                    parcel.get("planned_from"),
+                    parcel.get("planned_to"),
+                )
 
     def _fire_change_events(self, parcels: list[dict]) -> None:
         """Fire registered / status-changed / delivered / delivery-time events.

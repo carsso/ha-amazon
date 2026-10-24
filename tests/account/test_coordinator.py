@@ -25,6 +25,7 @@ from ..payloads import (
     active_record,
     delivered_record,
     in_transit_record,
+    untracked_record,
 )
 
 
@@ -221,6 +222,66 @@ async def test_fires_registered_event_for_new_parcel(hass):
 
     assert len(events) == 1
     assert events[0].data["barcode"] == "AMZNL000000000888"
+
+
+async def test_parcels_reached_late_after_a_restart_are_not_new(hass):
+    """The capped fan-out needs a few polls to list everything again."""
+    entry = _entry()
+    entry.add_to_hass(hass)
+    client = fake_client()
+    coordinator = AmazonCoordinator(hass, client, entry)
+    events = []
+    hass.bus.async_listen(f"{DOMAIN}_parcel_registered", lambda e: events.append(e))
+
+    client.listing_complete = False
+    client.async_get_parcels.return_value = [active_record()]
+    await coordinator._async_update_data()
+    client.async_get_parcels.return_value = [
+        active_record(),
+        active_record("AMZNL000000000777"),
+    ]
+    await coordinator._async_update_data()
+    client.listing_complete = True
+    client.async_get_parcels.return_value = [
+        active_record(),
+        active_record("AMZNL000000000777"),
+        active_record("AMZNL000000000888"),
+    ]
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert [event.data["barcode"] for event in events] == ["AMZNL000000000888"]
+
+
+async def test_a_stand_in_turning_into_its_tracking_id_is_not_new(hass):
+    entry = _entry()
+    entry.add_to_hass(hass)
+    client = fake_client()
+    coordinator = AmazonCoordinator(hass, client, entry)
+    registered = []
+    changed = []
+    hass.bus.async_listen(f"{DOMAIN}_parcel_registered", lambda e: registered.append(e))
+    hass.bus.async_listen(
+        f"{DOMAIN}_parcel_status_changed", lambda e: changed.append(e)
+    )
+
+    client.async_get_parcels.return_value = [active_record()]
+    await coordinator._async_update_data()
+    stand_in = untracked_record()
+    client.async_get_parcels.return_value = [active_record(), stand_in]
+    await coordinator._async_update_data()
+    tracked = {
+        **stand_in,
+        "barcode_source": "tracking_id",
+        "tracking_id": "AMZNL000000000999",
+        "milestone": "SHIPPED",
+    }
+    client.async_get_parcels.return_value = [active_record(), tracked]
+    await coordinator._async_update_data()
+    await hass.async_block_till_done()
+
+    assert [event.data["barcode"] for event in registered] == ["SHIPnotrack1"]
+    assert [event.data["barcode"] for event in changed] == ["AMZNL000000000999"]
 
 
 def _with_window(monkeypatch, window: dict[str, str | None]):

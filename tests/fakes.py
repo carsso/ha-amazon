@@ -85,5 +85,6 @@ def fake_client() -> AsyncMock:
     """A stand-in ``AmazonClient`` for coordinator tests; script ``async_get_parcels``."""
     client = AsyncMock()
     client.business_lines = []
+    client.listing_complete = True
     client.restore_business_lines = MagicMock()
     return client

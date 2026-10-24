@@ -256,6 +256,8 @@ def parse_order_tiles(page: str, today: date) -> list[OrderTile]:
                 if placed_on
                 else _day_month(status_text, today)
             ) or _relative_day(status_text, today)
+            if delivered_on is None:
+                _warn_undated(status_text)
         tiles.append(
             OrderTile(
                 order_id=order_id,
@@ -322,6 +324,11 @@ def business_history_failed(fragment: str) -> bool:
     return bool(_BUSINESS_EXCEPTION_RE.search(fragment))
 
 
+def business_cards_found(fragment: str) -> int:
+    """How many cards of the Business order list are in a shape we read."""
+    return len(_BUSINESS_CARD_RE.findall(fragment))
+
+
 def business_card_count(fragment: str) -> int | None:
     """How many cards the Business order list says it rendered."""
     match = _BUSINESS_COUNT_RE.search(fragment)
@@ -350,6 +357,11 @@ def parse_business_cards(fragment: str, today: date) -> list[OrderTile]:
         query = {k.lower(): v for k, v in parse_qs(urlparse(href).query).items()}
         order_id = (query.get("orderid") or query.get("oid") or [""])[0]
         if not order_id:
+            warn_once(
+                "business-card-without-order",
+                "An Amazon Business order card named no order, so it is left"
+                " out; Amazon may have changed how the list links its orders.",
+            )
             continue
         if kind is not None and not confirmed:
             warn_once(
@@ -371,6 +383,8 @@ def parse_business_cards(fragment: str, today: date) -> list[OrderTile]:
             delivered_on = _day_month(status_text, today) or _relative_day(
                 status_text, today
             )
+            if delivered_on is None:
+                _warn_undated(status_text)
         tiles.append(
             OrderTile(
                 order_id=order_id,
@@ -393,6 +407,20 @@ def parse_business_cards(fragment: str, today: date) -> list[OrderTile]:
 def _mask(text: str) -> str:
     """Hide digits so a moving date cannot make a warning repeat."""
     return re.sub(r"\d+", "#", text)
+
+
+def _warn_undated(status_text: str) -> None:
+    """Report a delivered line whose text says more than we could date."""
+    # A bare "Delivered" carries no date to read; anything longer should.
+    if status_text.strip().lower() in STATUS_PREFIXES:
+        return
+    masked = _mask(status_text)
+    warn_once(
+        f"undated-delivery={masked}",
+        f'The Amazon order-line text "{masked}" says the parcel was delivered'
+        " but gave no date we could read, so the day it was first seen"
+        " delivered is used; please share the wording.",
+    )
 
 
 def _split_unanchored_label(label: str) -> tuple[str, str, str]:

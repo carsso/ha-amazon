@@ -105,7 +105,9 @@ the structured state a response carries over anything meant for display.
   two must agree within an hour or the window is dropped with a one-shot
   warning. Never on a delivered parcel. Seen on amazon.fr only.
 - **Delivered day** from the order line's date, else from a relative word
-  (today, yesterday, a French weekday within the past week).
+  (today, yesterday, a French weekday within the past week). A delivered text
+  longer than the bare status word that gives no day warns once, so the
+  wording can be added.
 - **Delivery photo** (`raw["delivery_photo_url"]`, not a canonical field — a
   contract addition was considered and deliberately not made). Only Amazon's own
   fleet renders the card; a third-party carrier's page has none and the field is
@@ -150,7 +152,9 @@ the structured state a response carries over anything meant for display.
   untouched. One page only (newest first, last three months, "ordered by
   you"), enough for incoming parcels. A rejected token gets one fresh shell,
   then reads as an auth error. An empty list warns once: a malformed call
-  returns the same empty list as an account without orders. In-flight cards
+  returns the same empty list as an account without orders. So do a card
+  with no order and fewer readable cards than the list says it rendered,
+  since either silently drops a parcel. In-flight cards
   link to the tracking page; a delivered card links to an order page with no
   tracking and is never followed, so the client remembers each line's
   shipment and tracking link (keyed on order and title) to keep the same

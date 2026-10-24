@@ -792,6 +792,19 @@ async def test_an_empty_business_list_warns_once(caplog):
     assert caplog.text.count("Amazon Business order list came back empty") == 1
 
 
+async def test_business_cards_the_list_could_not_read_warn_once(caplog):
+    fragment = business_history(
+        business_card(business_order_path(), "Livré&nbsp;: hier"), count=2
+    )
+    session = _business_session(
+        FakeResponse(200, fragment), FakeResponse(200, fragment)
+    )
+    client = AmazonClient("amazon.fr", "refresh", session)
+    assert len(await client.async_get_parcels()) == 1
+    assert caplog.text.count("more Business order cards than could be read") == 1
+    assert "came back empty" not in caplog.text
+
+
 async def test_a_business_list_of_only_cancelled_cards_does_not_warn(caplog):
     session = _business_session(
         FakeResponse(

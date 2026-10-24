@@ -9,6 +9,7 @@ from custom_components.amazon_orders.account.pages import (
     _day_month,
     build_record,
     business_card_count,
+    business_cards_found,
     business_history_failed,
     delivery_photo_expiry,
     delivery_window,
@@ -965,7 +966,6 @@ def test_business_cards_in_every_state(caplog):
             title="Example item 8",
             cancelled=True,
         ),
-        business_card(business_order_path(""), "Livré jeudi", title="No order id"),
     )
     transit, yesterday, thursday, dated = parse_business_cards(fragment, FR_TODAY)
 
@@ -1004,9 +1004,41 @@ def test_business_card_with_unconfirmed_wording_asks_once(caplog):
     assert caplog.text.count("confirm it is right") == 1
 
 
+def test_business_card_without_an_order_is_left_out_with_a_warning(caplog):
+    card = business_card(business_order_path(""), "Livré jeudi", title="No order id")
+    assert parse_business_cards(business_history(card, card), FR_TODAY) == []
+    assert caplog.text.count("named no order") == 1
+
+
+def test_a_delivered_line_without_a_readable_date_warns_once(caplog):
+    page = orders_page(
+        tile(DELIVERED_SHIPMENT, "Delivered Thursday", None),
+        tile("SHIPbare0001", "Delivered", None),
+    )
+    thursday, bare = parse_order_tiles(page, TODAY)
+    parse_order_tiles(page, TODAY)
+    assert thursday.delivered_on is None
+    assert bare.delivered_on is None
+    assert caplog.text.count('"Delivered Thursday" says the parcel was delivered') == 1
+    assert '"Delivered" says' not in caplog.text
+
+
+def test_an_undated_delivered_business_card_warns(caplog):
+    fragment = business_history(
+        business_card(business_order_path(), "Livré la semaine dernière"),
+        business_card(business_order_path(), "Livré", title="Example item 2"),
+    )
+    later, bare = parse_business_cards(fragment, FR_TODAY)
+    assert later.delivered_on is None
+    assert bare.delivered_on is None
+    assert caplog.text.count("says the parcel was delivered") == 1
+
+
 def test_business_list_count_and_error_flag():
     assert business_card_count(business_history()) == 0
     assert business_card_count(business_history(count=23)) == 23
     assert business_card_count("<div></div>") is None
+    card = business_card(business_order_path(), "Livré")
+    assert business_cards_found(business_history(card, card, count=3)) == 2
     assert business_history_failed(business_history(exception=True))
     assert not business_history_failed(business_history())

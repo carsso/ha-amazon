@@ -12,7 +12,7 @@
 A custom Home Assistant integration that tracks your [Amazon](https://www.amazon.com) orders. Sign in to your own Amazon account once, and every shipment of your recent orders is imported automatically — no tracking codes to enter. Add the integration once per Amazon country and account you shop with.
 
 > [!WARNING]
-> **Pre-1.0.** This integration reads your own Amazon account the way you see it when signed in, not an official tracking service. Amazon can change how that works, or change its sign-in, at any time, in which case updates fail until the integration is updated, and you may be asked to sign in again. Only delivered parcels have been confirmed so far; the statuses for parcels still on their way are mapped from the tracking timeline, and an unrecognised status shows as `unknown` and logs a warning with a link to report it.
+> **Pre-1.0.** This integration reads your own Amazon account the way you see it when signed in, not an official tracking service. Amazon can change how that works, or change its sign-in, at any time, in which case updates fail until the integration is updated, and you may be asked to sign in again. Delivered parcels have been confirmed everywhere, parcels still on their way so far only on amazon.fr; elsewhere their statuses are mapped from the tracking timeline, and an unrecognised status shows as `unknown` and logs a warning with a link to report it.
 
 Built on the [ha-parcel-integrations](https://ha-parcel-integrations.github.io/) format: it publishes the same canonical parcel format, statuses and events as the other carrier integrations, so it plugs straight into the [Parcel Aggregator](https://github.com/ha-parcel-integrations/ha-parcel-aggregator) and cross-carrier automations.
 
@@ -261,6 +261,8 @@ logger:
 - **A parcel shows `unknown`** — Amazon said something we have not mapped yet. The log line "Unrecognised Amazon status" names it: please [open an issue](https://github.com/ha-parcel-integrations/ha-amazon/issues/new?template=unrecognised_status.yml) with that line.
 - **An order shows up as a parcel named after a shipment code** — that order line has no tracking page yet, so it is keyed on Amazon's shipment code until a tracking id appears.
 - **Nothing is imported** — only orders from the last few months show on Amazon's orders page, and only recent shipments are followed. Check the log for a warning that no order lines were recognised: it also appears when you simply have no recent orders, but otherwise Amazon may have changed the page.
+- **A Business parcel is missing** — only the first page of the Business order list is read (the newest orders of the last three months, ordered by you). If Amazon shows more cards than could be read, or a card names no order, the log says so once.
+- **A delivered parcel has the wrong delivery day** — when Amazon's wording for the delivery day is not recognised, the day the parcel was first seen as delivered is used, and the log names the wording once so it can be added.
 
 ## Related integrations
 

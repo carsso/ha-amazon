@@ -38,6 +38,7 @@ from .pages import (
     OrderTile,
     build_record,
     business_card_count,
+    business_cards_found,
     business_history_failed,
     is_track_page_path,
     looks_signed_out,
@@ -198,7 +199,15 @@ class AmazonClient:
                 for line, known in self._business_lines.items()
                 if line in listed
             }
-        if not tiles and not business_card_count(fragment):
+        rendered = business_card_count(fragment)
+        if rendered and rendered > business_cards_found(fragment):
+            warn_once(
+                "unread-business-cards",
+                "Amazon showed more Business order cards than could be read,"
+                " so some parcels may be missing; Amazon may have changed how"
+                " the cards look.",
+            )
+        if not tiles and not rendered:
             warn_once(
                 "no-business-lines",
                 "The Amazon Business order list came back empty. If you have"
